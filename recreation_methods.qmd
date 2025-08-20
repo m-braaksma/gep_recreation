@@ -5,10 +5,6 @@ format:
   html:
     embed-resources: true
     number-sections: true
-    # number-offset: [1]
-    # number-depth: 3
-    # shift-heading-level-by: -1
-    # number-depth: 1
 
 author:
   - name: Matt Braaksma
@@ -30,6 +26,15 @@ author:
     email: spwood@uw.edu
     url: 
   - name: Lifeng Ren
+    affiliations:
+      - name: University of Minnesota
+        department: Department of Applied Economics
+        address:
+        city:
+        country: USA
+    email: 
+    url: 
+  - name: Ryan McWay
     affiliations:
       - name: University of Minnesota
         department: Department of Applied Economics
