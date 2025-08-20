@@ -1,0 +1,51 @@
+---
+title: "Overview of Ecosystem Service: Recreation"
+format:
+  html:
+    embed-resources: true
+
+author:
+  - name: Matt Braaksma
+    affiliations:
+      - name: University of Minnesota
+        department: Department of Applied Economics
+        address:
+        city:
+        country: USA
+    email: braak014@umn.edu
+    url: https://m-braaksma.github.io/
+abstract: |
+---
+
+$$
+N = \sum_{i=1}^4 \frac{(1+k_i)}{(k_i + e^{-\alpha_i \times Pop_i})}
+$$
+
+
+<!-- This section outlines how we value landslide mitigation as an ecosystem service within the GEP framework. The analysis focuses specifically on avoided landslide mortality provided by the presence of forests.  
+
+
+# Methods
+
+
+## Estimating Quantity
+
+Building on the methodology outlined in [Brander et al.], we develop the first global methodology to quantify avoided landslide mortality in a given year. To estimate the quantity of deaths caused by landslides, we start by constructing a historic panel dataset. Mortality data is sourced from the Emergency Events Database (EM-DAT), which provides annual records of landslide-related fatalities at the administrative 2 level. The other key data source is the sediment export based on InVEST's SDR model, which accounts for forest cover. Also included is gridded population data from WorldPop, which accounts for the fact that mortality only occurs where people reside. Finally, ERA5 precipitation data is included to account for annual variation in weather, which may also impact landslides. These data are combined to create an annual admin-2 level dataset. 
+
+From this data, a mortality function is estimated using:
+
+$$
+Mort_{it} = \beta_0 + \beta_1 SedTotal_{it} + \beta_2 SedMax_{it} + \beta_3 SedRange_{it} + \beta_4 PopTotal_{it} + \beta_5 PopMax_{it} + \beta_6 PopRange_{it} + \beta_7 PrecipTotal_{it} + \beta_8 PrecipMax_{it} + \beta_9 PrecipRange_{it} + \epsilon_{it}
+$$
+
+where each variable is an administrative 2 region $i$ in year $t$. 
+
+Finally, using the coefficients from this function, we estimate avoided mortality in the desired year by taking predicted mortality under a counterfactual forest cover scenario less observed forest cover. 
+
+
+## Valuation
+
+To estimate the value of landslide mitigation, we employ a GDP-adjusted value of a staistical life (VSL). 
+
+
+# References -->
