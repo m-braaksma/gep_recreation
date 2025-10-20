@@ -5,6 +5,10 @@ import os
 import pandas as pd
 import geopandas as gpd
 
+# Reset GDAL_DATA path after importing hazelbean
+gdal_data_path = os.environ.get("GDAL_DATA")
+print("GDAL_DATA:", gdal_data_path)
+os.environ['GDAL_DATA'] = '/Users/mbraaksma/mambaforge/envs/hb01/share/gdal'
 
 def generate_environment_index(p):
     """
@@ -342,8 +346,8 @@ def calculate_daily_recreation_into_sites_kernel(p):
     inputs = {
         'hq_sites': os.path.join(p.recreation_site_analysis_dir, 'high_quality_sites_1km.tif'),
         'population': os.path.join(p.data_dir, 'gep_recreation/0_processed_raster_inputs/worldpop/ppp_2010_1km_aligned.tif'),
-        'country_id': os.path.join(p.data_dir, 'gep_recreation/0_processed_raster_inputs/ee_r264_ids_1km.tif'),
-        'country_costs': os.path.join(p.data_dir, 'gep_recreation/0_inputs/feul_cost_per_km_2019_2datasources.csv')
+        'country_id': os.path.join(p.allocate_overnights_dir, 'iso3_r250_ids_1km.tif'),
+        'country_costs': os.path.join(p.data_dir, 'gep_recreation/0_inputs/feul_cost_per_km_2019_2datasources_iso3.csv')
     }
     
     # Define output paths
@@ -387,7 +391,7 @@ def calculate_kernel_based_recreation(inputs, outputs, p):
 
     # Load country costs
     country_costs_df = pd.read_csv(inputs['country_costs'])
-    country_costs = dict(zip(country_costs_df['ee_r264_id'], 
+    country_costs = dict(zip(country_costs_df['iso3_r250_id'], 
                            country_costs_df['gasoline_cost_usd_per_km_2019_gppdata']))
 
     # Get raster info
@@ -619,6 +623,10 @@ def add_to_total(total_path, addition_path):
         # Where only addition is valid, use addition
         only_addition = ~valid_total & valid_addition
         result[only_addition] = addition[only_addition]
+
+        # Clean up floating-point precision errors - ensure no negative values
+        valid_result = result != -9999
+        result[valid_result] = np.maximum(result[valid_result], 0.0)
         
         return result
     
@@ -657,7 +665,7 @@ def allocate_overnights(p):
     """
     Allocate national overnight stays based on hotel points.
     1) Read overnight stay data from UNTWO excel file and clean.
-    2) Map overnight data to country gkpg using ee_r264_id correspondence. 
+    2) Map overnight data to country gkpg using ee_r250_id correspondence. 
     3) Rasterize to 1km grid. 
     4) Allocate to 1km grid based on hotel points.
     """
@@ -665,8 +673,7 @@ def allocate_overnights(p):
 
     # Define input paths relative to data_dir
     overnight_path = os.path.join(p.data_dir, 'gep_recreation/0_inputs/unwto-all-data-download_2022.xlsx')
-    ee_r264_correspondence_path = os.path.join(p.data_dir, 'gep_recreation/0_inputs/ee_r264_correspondence.csv')
-    country_gpkg_path = os.path.join(p.data_dir, 'gep_recreation/0_inputs/ee_r264_correspondence.gpkg')
+    country_gpkg_path = os.path.join(p.data_dir, 'gep_recreation/0_inputs/ee_r250_correspondence.gpkg')
     ref_raster_path = os.path.join(p.data_dir, 'gep_recreation/0_processed_raster_inputs/grip4_road_length/grip4_road_length_1km.tif')
     hotel_raster_path = os.path.join(p.cur_dir, 'hotels_1km.tif')
 
@@ -684,14 +691,11 @@ def allocate_overnights(p):
     p.L.info("Importing UNTWO overnight data...")
     overnight_df = clean_untwo_data(p, overnight_path)
 
-    p.L.info("Loading country mapping using iso3_r250_id linkage...")
-    merged_overnight_df = load_country_mapping_using_iso3_r250_id(p, overnight_df, ee_r264_correspondence_path)
-        
     p.L.info(f"Rasterizing country borders...")
-    country_raster_path = rasterize_country_borders(p, country_gpkg_path, 'ee_r264_ids_1km.tif', ref_raster_path, 'ee_r264_id')
+    country_raster_path = rasterize_country_borders(p, country_gpkg_path, 'iso3_r250_ids_1km.tif', ref_raster_path, 'iso3_r250_id')
 
     # Create overnight allocation raster using merged data
-    create_overnight_allocation_raster(p, merged_overnight_df, hotel_raster_path, country_raster_path, output_path)
+    create_overnight_allocation_raster(p, overnight_df, hotel_raster_path, country_raster_path, output_path)
     p.L.info(f"Overnight allocation complete: {output_path}")
 
 def rasterize_hotel_points(p, hotel_raster_path):
@@ -712,9 +716,9 @@ def rasterize_hotel_points(p, hotel_raster_path):
         target_bounding_box=ref_info['bounding_box'], 
         target_raster_path=output_path, 
         target_pixel_size=ref_info['pixel_size'], 
-        target_pixel_type=ref_info['datatype'], 
+        target_pixel_type=gdal.GDT_Int16, 
         target_srs_wkt=ref_info['projection_wkt'], 
-        target_nodata=ref_info['nodata'][0], 
+        target_nodata=-1, 
         fill_value=0
     )
     pygeoprocessing.geoprocessing.rasterize(
@@ -788,13 +792,18 @@ def clean_untwo_data(p, overnight_path):
         f"{otype}_overnights_{ttype}" for otype, ttype in pivoted.columns[3:]
     ]
 
-    # Add combined (total + hotel)
+    # Use Total if available, otherwise use Hotels
     for ttype in ['domestic', 'international']:
         total_col = f"total_overnights_{ttype}"
         hotel_col = f"hotels and similar establishments_overnights_{ttype}"
-        combined_col = f"combined_overnights_{ttype}"
-        if total_col in pivoted.columns and hotel_col in pivoted.columns:
-            pivoted[combined_col] = pivoted[total_col] + pivoted[hotel_col]
+        combined_col = f"overnights_{ttype}"
+        pivoted[combined_col] = pivoted[total_col].fillna(0) + pivoted[hotel_col].fillna(0)
+        # But prevent double counting:
+        pivoted[combined_col] = np.where(
+            pivoted[total_col].notna(), 
+            pivoted[total_col],  # Use total if available
+            pivoted[hotel_col]   # Use hotels if total missing
+        )
 
     # Reorder and rename columns
     final_cols = ['iso3_r250_id', 'unwto_name', 'year']
@@ -802,7 +811,7 @@ def clean_untwo_data(p, overnight_path):
         final_cols += [
             f"total_overnights_{ttype}",
             f"hotel_overnights_{ttype}",
-            f"combined_overnights_{ttype}"
+            f"overnights_{ttype}"
         ]
 
     pivoted.rename(columns={
@@ -816,26 +825,6 @@ def clean_untwo_data(p, overnight_path):
     output_path = os.path.join(p.cur_dir, "unwto_panel.csv")
     final_df.to_csv(output_path, index=False)
     return final_df
-
-def load_country_mapping_using_iso3_r250_id(p, overnight_df, ee_r264_correspondence_path):
-    """Load country mappings by merging UNWTO data with ee_r264_correspondence on iso3_r250_id"""
-    # Load ee_r264_correspondence file
-    ee_r264_df = pd.read_csv(ee_r264_correspondence_path)
-    
-    # Manually select duplicate ee_r264_ids
-    # China, France, India, Pakistan, Turkey, UK
-    keep_mapping = {156: 44, 250: 76, 356: 105, 586: 173, 792: 227, 826: 80} 
-    ee_r264_df = ee_r264_df[
-        ~ee_r264_df['iso3_r250_id'].isin(keep_mapping.keys()) |
-        ((ee_r264_df['iso3_r250_id'].isin(keep_mapping.keys())) & 
-         (ee_r264_df.apply(lambda row: keep_mapping.get(row['iso3_r250_id']) == row['ee_r264_id'], axis=1)))
-    ]
-
-    # Merge on iso3_r250_id to get ee_r264_id
-    merged_df = overnight_df.merge(ee_r264_df, on='iso3_r250_id', how='left', validate='many_to_one') 
-    p.L.info(f"Loaded {len(merged_df)} country mappings using iso3_r250_id linkage")
-
-    return merged_df
 
 def rasterize_country_borders(p, vector_path, raster_name, ref_raster_path, column):
     # Define output path
@@ -865,12 +854,12 @@ def rasterize_country_borders(p, vector_path, raster_name, ref_raster_path, colu
 
     return output_path
 
-def create_overnight_allocation_raster(p, merged_overnight_df, hotel_raster_path, country_raster_path, output_path, target_year=2019):
+def create_overnight_allocation_raster(p, overnight_df, hotel_raster_path, country_raster_path, output_path, target_year=2019):
     """
     Create overnight allocation raster based on hotel distribution
     Args:
         p: Parameter object with logging
-        merged_overnight_df: DataFrame with overnight stay data already merged with ee_r264_id
+        overnight_df: DataFrame with overnight stay data already merged with iso3_r250_id
         hotel_raster_path: Path to hotel density raster
         country_raster_path: Path to country ID raster
         output_path: Path for output overnight allocation raster
@@ -879,24 +868,24 @@ def create_overnight_allocation_raster(p, merged_overnight_df, hotel_raster_path
     p.L.info("Creating country-to-overnight mapping...")
 
     # Filter to target year
-    year_data = merged_overnight_df[merged_overnight_df['year'] == target_year].copy()
+    year_data = overnight_df[overnight_df['year'] == target_year].copy()
 
-    # Create ee_r264_id to overnights mapping directly from merged data
+    # Create iso3_r250_id to overnights mapping directly from merged data
     country_overnights_map = {}
     total_overnights_allocated = 0
     for _, row in year_data.iterrows():
-        ee_r264_id = row['ee_r264_id']
+        iso3_r250_id = row['iso3_r250_id']
         # Use combined overnights (domestic + international)
         total_overnights = 0
-        for col in ['combined_overnights_domestic', 'combined_overnights_international']:
+        for col in ['overnights_domestic', 'overnights_international']:
             if col in row and pd.notna(row[col]):
                 total_overnights += row[col]
         if total_overnights > 0:
             # Sum if multiple entries for same country (shouldn't happen but just in case)
-            if ee_r264_id in country_overnights_map:
-                country_overnights_map[ee_r264_id] += total_overnights
+            if iso3_r250_id in country_overnights_map:
+                country_overnights_map[iso3_r250_id] += total_overnights
             else:
-                country_overnights_map[ee_r264_id] = total_overnights
+                country_overnights_map[iso3_r250_id] = total_overnights
             total_overnights_allocated += total_overnights
 
     mapped_countries = len(country_overnights_map)
@@ -938,8 +927,8 @@ def calculate_tourist_recreation_into_sites_kernel(p):
     inputs = {
         'hq_sites': os.path.join(p.recreation_site_analysis_dir, 'high_quality_sites_1km.tif'),
         'population': os.path.join(p.allocate_overnights_dir, 'overnights_1km.tif'),
-        'country_id': os.path.join(p.data_dir, 'gep_recreation/0_processed_raster_inputs/ee_r264_ids_1km.tif'),
-        'country_costs': os.path.join(p.data_dir, 'gep_recreation/0_inputs/feul_cost_per_km_2019_2datasources.csv')
+        'country_id': os.path.join(p.allocate_overnights_dir, 'iso3_r250_ids_1km.tif'),
+        'country_costs': os.path.join(p.data_dir, 'gep_recreation/0_inputs/feul_cost_per_km_2019_2datasources_iso3.csv')
     }
     
     # Define output paths
@@ -968,3 +957,144 @@ def calculate_tourist_recreation_into_sites_kernel(p):
     # Calculate for each distance buffer and sum results
     calculate_kernel_based_recreation(inputs, outputs, p)
 
+def aggregate_results_iso3(p):
+    """
+    Aggregate daily and tourist recreation results to country levels.
+    """
+    # Define input paths
+    inputs = {
+        'daily_visits': os.path.join(p.calculate_daily_recreation_into_sites_kernel_dir, 'site_visits_1km.tif'),
+        'daily_value': os.path.join(p.calculate_daily_recreation_into_sites_kernel_dir, 'site_value_1km.tif'),
+        'tourist_visits': os.path.join(p.calculate_tourist_recreation_into_sites_kernel_dir, 'site_visits_1km.tif'),
+        'tourist_value': os.path.join(p.calculate_tourist_recreation_into_sites_kernel_dir, 'site_value_1km.tif'),
+        'country_id': os.path.join(p.allocate_overnights_dir, 'iso3_r250_ids_1km.tif'),
+        'country_gpkg': os.path.join(p.data_dir, 'gep_recreation', '0_inputs', 'ee_r250_correspondence.gpkg'),
+    }
+    
+    # Define output paths
+    outputs = {
+        'results_by_country_csv': os.path.join(p.cur_dir, 'results_by_country.csv'),
+        'results_by_country_gpkg': os.path.join(p.cur_dir, 'results_by_country.gpkg'),
+    }
+    
+    # Check if outputs already exist
+    if all(os.path.exists(output) for output in outputs.values()):
+        p.L.info("Aggregated results already exist, skipping aggregation")
+        return
+    
+    # Load country_id raster as array
+    try:
+        # Load country_id raster as array
+        country_id_array = pygeoprocessing.raster_to_numpy_array(inputs['country_id'])
+        ndv = pygeoprocessing.get_raster_info(inputs['country_id'])['nodata'][0]
+    except Exception as e:
+        p.L.error(f"Failed to load country_id raster: {e}")
+    # country_id_array = pygeoprocessing.raster_to_numpy_array(inputs['country_id'])
+    # ndv = pygeoprocessing.get_raster_info(inputs['country_id'])['nodata'][0]
+    valid_mask = (country_id_array != ndv) & (~np.isnan(country_id_array))
+    country_ids = np.unique(country_id_array[valid_mask])
+    country_ids = country_ids[country_ids > 0]  # Only positive IDs
+
+    # For each country, sum values from each raster
+    rows = []
+    total_countries = len(country_ids)
+    results_arrays = {}
+    for key in ['daily_visits', 'daily_value', 'tourist_visits', 'tourist_value']:
+        arr = pygeoprocessing.raster_to_numpy_array(inputs[key])
+        arr_ndv = pygeoprocessing.get_raster_info(inputs[key])['nodata'][0]
+        arr = np.where(arr == arr_ndv, np.nan, arr)
+        results_arrays[key] = arr
+
+    # Loop through countries and aggregate
+    for idx, cid in enumerate(country_ids, 1):
+        mask = (country_id_array == cid)
+        row = {'iso3_r250_id': int(cid)}
+        if idx % 10 == 0 or idx == 1 or idx == total_countries:
+            p.L.info(f"Processed {idx}/{total_countries} countries")
+        for key in results_arrays:
+            val = np.nansum(results_arrays[key][mask])
+            row[key] = val
+        rows.append(row)
+
+    # Merge with country polygons and save as gpkg
+    df = pd.DataFrame(rows)
+    gdf = gpd.read_file(inputs['country_gpkg'])
+    gdf_merged = gdf.merge(df, on='iso3_r250_id', how='left')
+    gdf_out = gdf_merged[['iso3_r250_id', 'iso3_r250_label', 'daily_visits', 'daily_value', 'tourist_visits', 'tourist_value', 'geometry']]
+
+    # Save to CSV
+    df_out = pd.DataFrame(gdf_out)
+    df_out = df_out.drop(columns='geometry')
+    df_out.to_csv(outputs['results_by_country_csv'], index=False)
+    p.L.info(f"Saved country results to {outputs['results_by_country_csv']}")
+
+    # Merge with country polygons and save as gpkg
+    gdf_out.to_file(outputs['results_by_country_gpkg'], driver='GPKG')
+    p.L.info(f"Saved country results to {outputs['results_by_country_gpkg']}")
+
+
+
+import os
+import rasterio
+import numpy as np
+import matplotlib.pyplot as plt
+
+class RasterPlotter:
+    def __init__(self, mask_path, output_dir, offwhite='#f7f7f7'):
+        self.mask_path = mask_path
+        self.output_dir = output_dir
+        self.offwhite = offwhite
+        # Load mask once
+        with rasterio.open(mask_path) as mask_src:
+            self.mask = mask_src.read(1)
+
+    def plot(self, raster_path, prefix, title, cmap, legend_label, vmin=None, vmax=None, max_size=1000):
+        with rasterio.open(raster_path) as src:
+            scale = max(src.width / max_size, src.height / max_size, 1)
+            new_width = int(src.width / scale)
+            new_height = int(src.height / scale)
+            data = src.read(1, out_shape=(1, new_height, new_width), resampling=rasterio.enums.Resampling.average)
+        with rasterio.open(self.mask_path) as mask_src:
+            mask = mask_src.read(1, out_shape=(1, new_height, new_width), resampling=rasterio.enums.Resampling.nearest)
+        data_masked = np.where(mask == 0.0, np.nan, data)
+        data_masked = np.ma.masked_where(np.isnan(data_masked), data_masked)
+        cmap_obj = plt.get_cmap(cmap).copy()
+        cmap_obj.set_bad(self.offwhite)
+        plt.figure(figsize=(10, 8))
+        im = plt.imshow(data_masked, cmap=cmap_obj, vmin=vmin, vmax=vmax)
+        cbar = plt.colorbar(im, shrink=0.4)
+        cbar.set_label(legend_label)
+        plt.title(title)
+        plt.axis('off')
+        out_png = os.path.join(self.output_dir, prefix + os.path.basename(raster_path).replace('.tif', '.png'))
+        plt.savefig(out_png, bbox_inches='tight', dpi=200)
+        plt.close()
+
+def plot_recreation_results(p):
+    """Plots masked site_value and site_visits rasters for daily and tourist recreation."""
+    mask_path = os.path.join(p.allocate_overnights_dir, 'iso3_r250_ids_1km.tif')
+    output_dir = p.cur_dir
+    plotter = RasterPlotter(mask_path, output_dir)
+
+    plot_configs = [
+        {
+            'dir': p.calculate_daily_recreation_into_sites_kernel_dir,
+            'files': [
+                ('site_value_1km.tif', 'daily_', 'Daily Site Value', 'Greens', 'Site Value', 0, 10000),
+                ('site_visits_1km.tif', 'daily_', 'Daily Site Visits', 'Oranges', 'Site Visits', 0, 50000)
+            ]
+        },
+        {
+            'dir': p.calculate_tourist_recreation_into_sites_kernel_dir,
+            'files': [
+                ('site_value_1km.tif', 'tourist_', 'Tourist Site Value', 'Greens', 'Site Value', 0, 2000),
+                ('site_visits_1km.tif', 'tourist_', 'Tourist Site Visits', 'Oranges', 'Site Visits', 0, 20000)
+            ]
+        }
+    ]
+
+    for config in plot_configs:
+        for fname, prefix, title, cmap, legend_label, vmin, vmax in config['files']:
+            raster_path = os.path.join(config['dir'], fname)
+            plotter.plot(raster_path, prefix, title, cmap, legend_label, vmin, vmax)
+            
