@@ -27,9 +27,7 @@ def build_recreation_task_tree(p):
     p.calculate_tourist_recreation_task = p.add_task(recreation_tasks.calculate_tourist_recreation_into_sites_kernel)
 
     # Post-processing and visualization
-    # p.visualize_results_task = p.add_task(recreation_tasks.visualize_results)
     p.aggregate_results_task = p.add_task(recreation_tasks.aggregate_results_iso3)
-    # p.visualize_results_task = p.add_task(recreation_tasks.plot_recreation_results)
 
     return p
 
