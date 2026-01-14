@@ -397,5 +397,3 @@ Markdown(tabulate(summary_df, headers='keys', tablefmt='pipe', showindex=False))
 
 
 # References
-
-[References to be added]
