@@ -1,0 +1,676 @@
+---
+title: "Predicting Backward Panel of Air Travel Regional Prices"
+author: "Ryan McWay"
+format:
+  html:
+    toc: true
+execute:
+    echo: true
+---
+
+
+
+# Method 
+This attempts to predict the backward panel of air travel regional prices by collecting and analyzing airfare data from major transit hubs across different continents.
+Using a cross-section of major transit hubs, I aim to capture airfare prices for five major transit hubs in each continent.
+I then correlate these prices to the geographic distance and oil prices. 
+For here, I can produce a cross-sectional mapping of airfare prices across different regions in 2019 which can be used in the nature tourism GEP estimates. 
+
+
+# Collecting Air Travel Prices
+
+In this section, I generate a matrix of orgin-destination prices for various air travel routes. 
+This was collected on Sept. 8th, 2026. The search assumptions is for a round trip journey for 1 person without any checked luggage. The round trip is assumed to be 1 week flying from Friday to Friday (e.g., Sept. 11th - Sept. 18th). The prices are presented in USD. Flights are filtered  by "Best" and sorted by "Price". I record and average the first five flights that are presented. I use `flightlist` instead of `Google Flights` for data collection: https://www.flightlist.io/ This is because it requires no API to query, is free, and the platform is simple. 
+
+Travel nodes are selected from the most traveled transit hubs globally, as identified by Wikipedia: https://en.wikipedia.org/wiki/List_of_busiest_airports_by_passenger_traffic
+Some of the regions are not limited on this list. So I supplement using: 
+- Africa: https://en.wikipedia.org/wiki/List_of_the_busiest_airports_in_Africa
+- South America: https://en.wikipedia.org/wiki/List_of_the_busiest_airports_in_South_America
+- Oceania: https://en.wikipedia.org/wiki/List_of_the_busiest_airports_in_Oceania
+The aim of the exercise is to get a range (IQR) for air travel prices by region/contient. 
+So, I take the top five hubs for the following regions: 
+- North America
+- Europe
+- Asia
+- South America
+- Africa
+- Oceania
+From here, I can then construct a matrix of every hub to any other hub. This provide both between and within airfare price comparisions. 
+So this data wil be averaged across flights for O-D pairs, then aggregated by O-D pairs to the regional or continental level.
+
+```{r}
+# Clear environment to restart 
+rm(list = ls())
+
+# List the regional hubs for each continent
+hubs_NA <- c("Hartsfield–Jackson Atlanta International Airport", 
+    "Dallas Fort Worth International Airport", 
+    "O'Hare International Airport", 
+    "Denver International Airport", 
+    "Los Angeles International Airport")
+hubs_EU <- c("Heathrow Airport", 
+    "Istanbul Airport", 
+    "Charles de Gaulle Airport", 
+    "Amsterdam Airport Schiphol", 
+    "Adolfo Suárez Madrid–Barajas Airport")
+hubs_AS <- c("Dubai International Airport", 
+    "Tokyo Haneda Airport", 
+    "Shanghai Pudong International Airport", 
+    "Guangzhou Baiyun International Airport", 
+    "Indira Gandhi International Airport")
+hubs_SA <- c("El Dorado International Airport", 
+    "São Paulo–Guarulhos International Airport", 
+    "Jorge Chávez International Airport", 
+    "Arturo Merino Benítez International Airport", 
+    "São Paulo–Congonhas Airport")
+hubs_AF <- c("Cairo International Airport", 
+    "OR Tambo International Airport", 
+    "Bole International Airport", 
+    "Mohammed V International Airport", 
+    "Hurghada International Airport")
+hubs_OC <- c("Sydney Airport",
+    "Melbourne Airport", 
+    "Brisbane Airport", 
+    "Auckland Airport", 
+    "Daniel K. Inouye International Airport")
+```
+
+```{r}
+# For each hub, add rank number and region category variables. 
+hubs_NA <- data.frame(hub = hubs_NA, rank = 1:5, region = "North America")
+hubs_EU <- data.frame(hub = hubs_EU, rank = 1:5, region = "Europe")
+hubs_AS <- data.frame(hub = hubs_AS, rank = 1:5, region = "Asia")
+hubs_SA <- data.frame(hub = hubs_SA, rank = 1:5, region = "South America")
+hubs_AF <- data.frame(hub = hubs_AF, rank = 1:5, region = "Africa")
+hubs_OC <- data.frame(hub = hubs_OC, rank = 1:5, region = "Oceania")
+
+# All hubs
+all_hubs <- rbind(hubs_NA, hubs_EU, hubs_AS, hubs_SA, hubs_AF, hubs_OC)
+
+# Print the list: 
+print(all_hubs)
+
+# Construct the matrix of regional hubs to generate all possible O-D pairings
+od_pairs <- expand.grid(origin = all_hubs$hub, destination = all_hubs$hub)
+od_pairs <- merge(od_pairs, all_hubs[, c("hub", "region")], by.x = "origin", by.y = "hub")
+od_pairs <- merge(od_pairs, all_hubs[, c("hub", "region")], by.x = "destination", by.y = "hub")
+colnames(od_pairs)[3:4] <- c("origin_region", "destination_region")
+od_pairs$pair_id <- 1:nrow(od_pairs)
+
+# Remove all self-referencing pairs (origin & destination are same)
+    # These are meaningless pairings (do not fly to your own hub)
+od_pairs <- od_pairs[od_pairs$origin != od_pairs$destination, ]
+```
+
+```{r}
+# Determine distance between airports 
+
+# Match the hub names above to stable IATA airport codes.
+hub_iata <- c(
+    "Hartsfield–Jackson Atlanta International Airport" = "ATL",
+    "Dallas Fort Worth International Airport" = "DFW",
+    "O'Hare International Airport" = "ORD",
+    "Denver International Airport" = "DEN",
+    "Los Angeles International Airport" = "LAX",
+    "Heathrow Airport" = "LHR",
+    "Istanbul Airport" = "IST",
+    "Charles de Gaulle Airport" = "CDG",
+    "Amsterdam Airport Schiphol" = "AMS",
+    "Adolfo Suárez Madrid–Barajas Airport" = "MAD",
+    "Dubai International Airport" = "DXB",
+    "Tokyo Haneda Airport" = "HND",
+    "Shanghai Pudong International Airport" = "PVG",
+    "Guangzhou Baiyun International Airport" = "CAN",
+    "Indira Gandhi International Airport" = "DEL",
+    "El Dorado International Airport" = "BOG",
+    "São Paulo–Guarulhos International Airport" = "GRU",
+    "Jorge Chávez International Airport" = "LIM",
+    "Arturo Merino Benítez International Airport" = "SCL",
+    "São Paulo–Congonhas Airport" = "CGH",
+    "Cairo International Airport" = "CAI",
+    "OR Tambo International Airport" = "JNB",
+    "Bole International Airport" = "ADD",
+    "Mohammed V International Airport" = "CMN",
+    "Hurghada International Airport" = "HRG",
+    "Sydney Airport" = "SYD",
+    "Melbourne Airport" = "MEL",
+    "Brisbane Airport" = "BNE",
+    "Auckland Airport" = "AKL",
+    "Daniel K. Inouye International Airport" = "HNL"
+)
+
+# Download airport coordinates. The source stores coordinates as longitude, latitude.
+airport_data <- read.csv(
+    "https://raw.githubusercontent.com/datasets/airport-codes/master/data/airport-codes.csv",
+    stringsAsFactors = FALSE
+)
+airport_locations <- airport_data[match(unname(hub_iata), airport_data$iata_code), ]
+airport_locations$hub <- names(hub_iata)
+
+# Match airport coordinates to O-D pairs
+coordinates <- do.call(
+    rbind,
+    strsplit(airport_locations$coordinates, ", ", fixed = TRUE)
+)
+airport_locations$longitude <- as.numeric(coordinates[, 1])
+airport_locations$latitude <- as.numeric(coordinates[, 2])
+
+# Calculate great-circle distance in kilometers using the Haversine formula.
+haversine_km <- function(lon1, lat1, lon2, lat2) {
+    radians <- pi / 180
+    delta_lon <- (lon2 - lon1) * radians
+    delta_lat <- (lat2 - lat1) * radians
+    a <- sin(delta_lat / 2)^2 +
+        cos(lat1 * radians) * cos(lat2 * radians) * sin(delta_lon / 2)^2
+    6371 * 2 * asin(sqrt(a))
+}
+
+origin_locations <- airport_locations[match(od_pairs$origin, airport_locations$hub), ]
+destination_locations <- airport_locations[match(od_pairs$destination, airport_locations$hub), ]
+
+# Calculate distance
+od_pairs$distance_km <- haversine_km(
+    origin_locations$longitude,
+    origin_locations$latitude,
+    destination_locations$longitude,
+    destination_locations$latitude
+)
+```
+
+```{r}
+# Confirm the O-D pairings 
+print(paste("Number of O-D pairs:", nrow(od_pairs)))
+print(head(od_pairs))
+```
+
+
+For each O-D pairing, region, what is distance, first five flights, and the average airfare cost. 
+NOTE BEFORE YOU RUN THIS: This has a long run time!
+
+```{r}
+# Flightlist's browser uses this public JSON endpoint; no API key is required.
+# Scrape incomplete routes by default; set this to FALSE for an offline render.
+scrape_flightlist <- TRUE
+scrape_delay_seconds <- 0.25
+outbound_date <- "2026-09-11"
+return_date <- "2026-09-18"
+
+od_pairs$origin_iata <- unname(hub_iata[od_pairs$origin])
+od_pairs$destination_iata <- unname(hub_iata[od_pairs$destination])
+
+flight_searches <- od_pairs[, c(
+    "pair_id", "origin", "destination", "origin_region",
+    "destination_region", "distance_km", "origin_iata", "destination_iata"
+)]
+flight_searches$outbound_date <- outbound_date
+flight_searches$return_date <- return_date
+flight_searches$search_url <- "https://www.flightlist.io/"
+flight_searches$search_instructions <- paste(
+    "Search", flight_searches$origin_iata, "to",
+    flight_searches$destination_iata, "for", outbound_date,
+    "through", return_date
+)
+
+# These columns are populated by the scraper or manual fallback.
+for (column in paste0("flight_", 1:5, "_usd")) {
+    flight_searches[[column]] <- NA_real_
+}
+flight_searches$average_fare_usd <- NA_real_
+flight_searches$checked <- FALSE
+flight_searches$status <- "manual_required"
+
+# Preserve fares already entered in a previous version of the queue.
+queue_path <- "flightlist_search_queue.csv"
+if (file.exists(queue_path)) {
+    previous_searches <- read.csv(queue_path, stringsAsFactors = FALSE)
+    previous_rows <- match(flight_searches$pair_id, previous_searches$pair_id)
+    saved_columns <- c(paste0("flight_", 1:5, "_usd"), "checked", "status")
+    for (column in saved_columns) {
+        if (column %in% names(previous_searches)) {
+            flight_searches[[column]] <- previous_searches[[column]][previous_rows]
+        }
+    }
+}
+
+# Normalize cached or manually entered fares before calculating averages.
+fare_columns <- paste0("flight_", 1:5, "_usd")
+for (column in fare_columns) {
+    fare_values <- suppressWarnings(as.numeric(as.character(flight_searches[[column]])))
+    fare_values[!is.finite(fare_values)] <- NA_real_
+    flight_searches[[column]] <- fare_values
+}
+
+flightlist_query <- function(origin_iata, destination_iata,
+                            outbound_date, return_date) {
+    query <- c(
+        fly_from = paste0("airport:", origin_iata),
+        fly_to = paste0("airport:", destination_iata),
+        date_from = format(as.Date(outbound_date), "%d/%m/%Y"),
+        date_to = format(as.Date(outbound_date), "%d/%m/%Y"),
+        return_from = format(as.Date(return_date), "%d/%m/%Y"),
+        return_to = format(as.Date(return_date), "%d/%m/%Y"),
+        adults = "1", children = "0", infants = "0",
+        selected_cabins = "M", curr = "USD", price_to = "",
+        limit = "100", sort = "price", max_stopovers = "10",
+        max_fly_duration = "60", stopover_from = "00:00",
+        stopover_to = "48:00", ret_from_diff_city = "false",
+        ret_to_diff_city = "false", dtime_from = "", dtime_to = "",
+        enable_vi = "true", flight_type = "return",
+        adult_hand_bag = "0", adult_hold_bag = "0"
+    )
+    encoded_query <- paste(
+        paste0(utils::URLencode(names(query), reserved = TRUE), "=",
+            utils::URLencode(unname(query), reserved = TRUE)),
+        collapse = "&"
+    )
+    paste0("https://www.flightlist.io/api/search.php?", encoded_query)
+}
+
+scrape_flightlist_prices <- function(search, delay_seconds = 1) {
+    if (!requireNamespace("jsonlite", quietly = TRUE)) {
+        stop("Install the jsonlite package before scraping Flightlist.")
+    }
+    url <- flightlist_query(
+        search$origin_iata, search$destination_iata,
+        search$outbound_date, search$return_date
+    )
+    result <- tryCatch({
+        response_text <- paste(readLines(url, warn = FALSE), collapse = "")
+        jsonlite::fromJSON(response_text, simplifyVector = FALSE)
+    }, error = function(error) {
+        list(error = conditionMessage(error))
+    })
+    Sys.sleep(delay_seconds)
+
+    if (!is.null(result$error)) {
+        return(list(prices = rep(NA_real_, 5), status = result$error))
+    }
+    if (length(result$data) == 0) {
+        return(list(prices = rep(NA_real_, 5), status = "no_results_manual_required"))
+    }
+    prices <- sort(as.numeric(vapply(result$data, function(flight) {
+        if (is.null(flight$price)) NA_real_ else flight$price
+    }, numeric(1))))
+    prices <- prices[is.finite(prices)]
+    prices <- c(prices, rep(NA_real_, 5))[1:5]
+    list(
+        prices = prices,
+        status = if (sum(!is.na(prices)) == 5) "scraped" else "fewer_than_five_manual_required"
+    )
+}
+
+if (scrape_flightlist) {
+    progress_bar <- utils::txtProgressBar(
+        min = 0,
+        max = nrow(flight_searches),
+        style = 3
+    )
+
+    for (row_number in seq_len(nrow(flight_searches))) {
+        if (!flight_searches$checked[row_number]) {
+            result <- scrape_flightlist_prices(
+                flight_searches[row_number, ],
+                delay_seconds = scrape_delay_seconds
+            )
+            if (result$status == "scraped") {
+                flight_searches[row_number, paste0("flight_", 1:5, "_usd")] <- result$prices
+            }
+            flight_searches$status[row_number] <- result$status
+
+            # Checkpoint after every request so an interrupted render keeps progress.
+            current_values <- flight_searches[, fare_columns, drop = FALSE]
+            flight_searches$average_fare_usd <- rowMeans(current_values, na.rm = TRUE)
+            flight_searches$average_fare_usd[
+                is.nan(flight_searches$average_fare_usd)
+            ] <- NA_real_
+            flight_searches$checked <- rowSums(!is.na(current_values)) == 5
+            write.csv(flight_searches, queue_path, row.names = FALSE)
+        }
+        utils::setTxtProgressBar(progress_bar, row_number)
+    }
+    close(progress_bar)
+}
+
+# Recalculate the average from the first five fares and preserve manual entries.
+flight_values <- flight_searches[, fare_columns, drop = FALSE]
+flight_searches$average_fare_usd <- rowMeans(flight_values, na.rm = TRUE)
+flight_searches$average_fare_usd[is.nan(flight_searches$average_fare_usd)] <- NA_real_
+flight_searches$checked <- rowSums(!is.na(flight_values)) == 5
+flight_searches$status[flight_searches$checked] <- "scraped"
+write.csv(flight_searches, queue_path, row.names = FALSE)
+
+# Open Flightlist while working through the queue. Use the printed
+# search_instructions to enter the route and dates in the browser form.
+open_flightlist_search <- function(pair_id) {
+    search <- flight_searches[flight_searches$pair_id == pair_id, ]
+    if (nrow(search) != 1) {
+        stop("pair_id must identify exactly one O-D pairing.")
+    }
+    utils::browseURL(search$search_url)
+    invisible(search)
+}
+
+print(flight_searches[1:3, c(
+    "pair_id", "origin_iata", "destination_iata", "search_instructions"
+)])
+```
+
+
+# Determinants of Air Travel 
+
+We have a cross-section of O-D prices globally. What we need is to construct a backward panel dataset that captures historical air travel prices for these O-D pairs over time.
+To achieve this, we can correlate (via regression) the relationship of determinants of air travel to the price of airfare. In prinicpal, match the prices to what is driving the price over time. We assume that the two major things that drive the price are distance and the transportation cost. Distance is assumed constant over time (e.g., new major transit hubs are not introduced/created over time reducing distance). For transportation cost, we assume that oil prices are a key driver and fluctuate over time, impacting airfare accordingly.
+
+We use the US EIA (Energy Information Administration) data on historical oil prices as a proxy for transportation costs. This allows us to model how fluctuations in oil prices impact air travel prices over time. https://www.eia.gov/dnav/pet/hist/LeafHandler.ashx?n=pet&s=f000000__3&f=m
+
+```{r}
+# Load oil data
+# oil_data_path <- "F:\\GEP\\GEP_recreation\\data\\us_crude_oil_price_historic_quarters.xls"
+# oil_data <- rio::import(oil_data_path, sheet = 2)
+oil_regional_path <- "F:\\GEP\\GEP_recreation\\data\\crude_oil_historic_monthly_regional.xls"
+oil_regional_data <- rio::import(oil_regional_path, sheet = 2) 
+# Keep the oil observation used for the airfare cross-section.
+oil_regional_data_merge <- oil_regional_data[500, , drop = FALSE]
+
+# Assign each origin region to its oil-price series.
+region_oil_map <- data.frame(
+    origin_region = c(
+        "North America", "Europe", "Asia", "South America",
+        "Africa", "Oceania"
+    ),
+    oil_variable = c(
+        "price_barrel_gen",       # North America: USA/general price
+        "price_barrel_opec",      # Europe: OPEC price
+        "price_barrel_persian_gulf", # Asia: Persian Gulf price
+        "price_barrel_non_opec",  # South America: non-OPEC price
+        "price_barrel_non_opec",  # Africa: non-OPEC price
+        "price_barrel_non_opec"   # Oceania: non-OPEC price
+    ),
+    stringsAsFactors = FALSE
+)
+
+airfare_data <- merge(
+    od_pairs,
+    region_oil_map,
+    by = "origin_region",
+    all.x = TRUE,
+    sort = FALSE
+)
+airfare_data$oil_price <- mapply(
+    function(variable) oil_regional_data_merge[[variable]][1],
+    airfare_data$oil_variable
+)
+airfare_data$oil_date <- as.Date(oil_regional_data_merge$Date[1])
+
+# Merge the first-five-flight average into the O-D data by pair ID.
+airfare_data <- merge(
+    airfare_data,
+    flight_searches[, c("pair_id", "average_fare_usd")],
+    by = "pair_id",
+    all.x = TRUE,
+    sort = FALSE
+)
+```
+
+```{r}
+library(tidyverse)
+# Simple Summary statistics by region
+    # Average flight price
+    # Average distance
+    # Overall (not by region) average oil price
+airfare_data |>
+    group_by(origin_region) |>
+    summarise(
+        average_fare_usd = mean(average_fare_usd, na.rm = TRUE),
+        average_distance_km = mean(distance_km, na.rm = TRUE),
+        average_oil_price_usd = mean(oil_price, na.rm = TRUE)
+    )
+```
+
+```{r}
+# Dependencies
+library(fixest)
+# Correlation of oil and distance to air travel prices
+reg <- lm(average_fare_usd ~ oil_price + distance_km, data = airfare_data)
+summary(reg)
+# feols(average_fare_usd ~ oil_price + distance_km | origin_region, data = airfare_data, vcov = "hc3")
+```
+
+```{r}
+# Also do a simple ratio for oil prices to airfares
+airfare_data$oil_to_airfare_ratio <- airfare_data$oil_price / airfare_data$average_fare_usd
+airfare_data$oil_to_airfare_ratio[
+    !is.finite(airfare_data$oil_to_airfare_ratio)
+] <- NA_real_
+```
+
+# Results: Panel of Regional Airfare Prices
+
+```{r}
+# Construct the backward monthly panel of O-D airfare prices.
+# Each O-D pairing is repeated for every month in the oil-price data.
+oil_panel <- oil_regional_data[, c(
+    "Date", "price_barrel_gen", "price_barrel_persian_gulf",
+    "price_barrel_opec", "price_barrel_non_opec"
+)]
+oil_panel$Date <- as.Date(oil_panel$Date)
+
+od_month_panel <- merge(
+    od_pairs,
+    oil_panel,
+    by = NULL,
+    all = TRUE,
+    sort = FALSE
+)
+
+# Attach the oil series selected for each origin region.
+od_month_panel <- merge(
+    od_month_panel,
+    region_oil_map,
+    by = "origin_region",
+    all.x = TRUE,
+    sort = FALSE
+)
+od_month_panel$oil_price <- mapply(
+    function(variable, row_number) {
+        od_month_panel[row_number, variable]
+    },
+    od_month_panel$oil_variable,
+    seq_len(nrow(od_month_panel))
+)
+
+# Preserve observed cross-sectional values for each O-D pair when available.
+observed_fares <- airfare_data[, c(
+    "pair_id", "average_fare_usd", "oil_to_airfare_ratio"
+)]
+od_month_panel <- merge(
+    od_month_panel,
+    observed_fares,
+    by = "pair_id",
+    all.x = TRUE,
+    sort = FALSE
+)
+
+# Pull the regression coefficients from the previously estimated model.
+reg_coefficients <- coef(reg)
+
+beta_intercept <- reg_coefficients["(Intercept)"]
+beta_oil <- reg_coefficients["oil_price"]
+beta_distance <- reg_coefficients["distance_km"]
+od_month_panel$predicted_fare_usd <- beta_intercept +
+    beta_oil * od_month_panel$oil_price +
+    beta_distance * od_month_panel$distance_km
+
+# Ratio-based prediction: oil_to_airfare_ratio = oil_price / airfare.
+# Therefore, implied airfare = oil_price / oil_to_airfare_ratio.
+od_month_panel$predicted_fare_ratio_usd <-
+    od_month_panel$oil_price / od_month_panel$oil_to_airfare_ratio
+od_month_panel$predicted_fare_ratio_usd[
+    !is.finite(od_month_panel$predicted_fare_ratio_usd)
+] <- NA_real_
+
+od_month_panel$year <- as.integer(format(od_month_panel$Date, "%Y"))
+od_month_panel$month <- as.integer(format(od_month_panel$Date, "%m"))
+od_month_panel$month_year <- format(od_month_panel$Date, "%Y-%m")
+
+airfare_panel <- od_month_panel[, c(
+    "pair_id", "origin", "destination", "origin_region",
+    "destination_region", "distance_km", "Date", "year", "month",
+    "month_year", "oil_variable", "oil_price", "average_fare_usd",
+    "oil_to_airfare_ratio", "predicted_fare_usd",
+    "predicted_fare_ratio_usd"
+)]
+
+print(dim(airfare_panel))
+print(head(airfare_panel))
+
+```
+
+# Visualization of the predicted time series with the oil price data
+
+```{r}
+# Dependencies
+library(ggplot2)
+# Average predicted airfare by origin region and month.
+regional_monthly <- aggregate(
+    predicted_fare_usd ~ origin_region + Date,
+    data = airfare_panel,
+    FUN = mean,
+    na.action = na.omit
+)
+
+# Oil is shown once per month on the secondary axis.
+oil_monthly <- aggregate(
+    oil_price ~ Date,
+    data = airfare_panel,
+    FUN = mean,
+    na.action = na.omit
+)
+
+regional_monthly <- regional_monthly[is.finite(regional_monthly$predicted_fare_usd), ]
+oil_monthly <- oil_monthly[is.finite(oil_monthly$oil_price), ]
+
+fare_max <- max(regional_monthly$predicted_fare_usd, na.rm = TRUE)
+oil_max <- max(oil_monthly$oil_price, na.rm = TRUE)
+oil_scale <- fare_max / oil_max
+
+# Line graph with regional airfare lines and a separate oil-price axis.
+ggplot(regional_monthly, aes(x = Date)) +
+    geom_line(
+        aes(y = predicted_fare_usd, color = origin_region),
+        linewidth = 0.8
+    ) +
+    geom_line(
+        data = oil_monthly,
+        aes(y = oil_price * oil_scale, linetype = "Oil price"),
+        color = "black",
+        linewidth = 0.7
+    ) +
+    scale_y_continuous(
+        name = "Predicted airfare (USD)",
+        sec.axis = sec_axis(
+            ~ . / oil_scale,
+            name = "Oil price (USD per barrel)"
+        )
+    ) +
+    labs(
+        title = "Oil Prices and Predicted Regional Airfare Prices Over Time (From Regression)",
+        x = "Date",
+        color = "Origin region",
+        linetype = "Series"
+    ) +
+    theme_minimal() +
+    theme(legend.position = "bottom")
+```
+
+```{r}
+# Average ratio-based predicted airfare by origin region and month.
+ratio_regional_monthly <- aggregate(
+    predicted_fare_ratio_usd ~ origin_region + Date,
+    data = airfare_panel,
+    FUN = mean,
+    na.action = na.omit
+)
+
+ratio_regional_monthly <- ratio_regional_monthly[
+    is.finite(ratio_regional_monthly$predicted_fare_ratio_usd),
+]
+
+ratio_fare_max <- max(
+    ratio_regional_monthly$predicted_fare_ratio_usd,
+    na.rm = TRUE
+)
+ratio_oil_scale <- ratio_fare_max / oil_max
+
+# Line graph for the ratio-based prediction with a separate oil-price axis.
+ggplot(ratio_regional_monthly, aes(x = Date)) +
+    geom_line(
+        aes(y = predicted_fare_ratio_usd, color = origin_region),
+        linewidth = 0.8
+    ) +
+    geom_line(
+        data = oil_monthly,
+        aes(y = oil_price * ratio_oil_scale, linetype = "Oil price"),
+        color = "black",
+        linewidth = 0.7
+    ) +
+    scale_y_continuous(
+        name = "Ratio-predicted airfare (USD)",
+        sec.axis = sec_axis(
+            ~ . / ratio_oil_scale,
+            name = "Oil price (USD per barrel)"
+        )
+    ) +
+    labs(
+        title = "Oil Prices and Ratio-Predicted Regional Airfare Prices Over Time",
+        x = "Date",
+        color = "Origin region",
+        linetype = "Series"
+    ) +
+    theme_minimal() +
+    theme(legend.position = "bottom")
+```
+
+
+# Final 2019 Estimates of Region to Reion Airfare prices
+
+For proceedinng, I would suggest using the `predicted_fare_ratio_usd` values. The regression estimates attempting to include distance I believe has issues given the cross-sectional nature of the data (e.g., note the negative relationship of oil prices and predicted fares).
+
+```{r}
+# Aggregate by origin-to-destination region pairing and year.
+airfare_agg <- aggregate(
+    cbind(
+        average_fare_usd,
+        predicted_fare_usd,
+        predicted_fare_ratio_usd
+    ) ~ origin_region + destination_region + year,
+    data = airfare_panel,
+    FUN = mean,
+    na.rm = TRUE
+)
+# Report summary table for 2019
+airfare_2019 <- subset(airfare_agg, year == 2019)
+print(airfare_2019)
+```
+
+```{r}
+# Export the 2019 aggregated airfare data to a CSV file.
+write.csv(airfare_2019, "F:\\GEP\\GEP_recreation\\data\\airfare_2019.csv", row.names = FALSE)
+```
+
+
+# Air Travel Data Sources
+
+These are data sources that Spencer provided to assist in this exercise. 
+
+- https://www.kaggle.com/datasets/dilwong/flightprices
+    - Worth downloading and exploring. 
+    - Potentially useful to supplement the constructed data set.
+    - ISSUE: This is for only domestic airports. So no better than the OD 94 data by Buerea of Transportation. 
+        - to/from the following airports: ATL, DFW, DEN, ORD, LAX, CLT, MIA, JFK, EWR, SFO, DTW, BOS, PHL, LGA, IAD, OAK.
+- https://www.reddit.com/r/datasets/comments/efnj6t/where_can_i_find_historical_flight_price_datasets/
+    - Some good suggestions. Did not find a smoking gun data set to use. 
+- https://www.oag.com/altus-data
+    - NOTE: Seems like we could try their free data trial. 
+- https://www.trade.gov/us-international-air-travel-statistics-i-92-data
+    - NOTE: This does not appear to have price data. Only aggregate arrivals and departures. 

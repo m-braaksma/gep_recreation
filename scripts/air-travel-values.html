@@ -1,0 +1,1757 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.6.42">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Ryan McWay">
+
+<title>Predicting Backward Panel of Air Travel Regional Prices</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="air-travel-values_files/libs/clipboard/clipboard.min.js"></script>
+<script src="air-travel-values_files/libs/quarto-html/quarto.js"></script>
+<script src="air-travel-values_files/libs/quarto-html/popper.min.js"></script>
+<script src="air-travel-values_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="air-travel-values_files/libs/quarto-html/anchor.min.js"></script>
+<link href="air-travel-values_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="air-travel-values_files/libs/quarto-html/quarto-syntax-highlighting-2f5df379a58b258e96c21c0638c20c03.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="air-travel-values_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="air-travel-values_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="air-travel-values_files/libs/bootstrap/bootstrap-1bc8a17f135ab3d594c857e9f48e611b.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+
+
+</head>
+
+<body>
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+<div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+  <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#method" id="toc-method" class="nav-link active" data-scroll-target="#method">Method</a></li>
+  <li><a href="#collecting-air-travel-prices" id="toc-collecting-air-travel-prices" class="nav-link" data-scroll-target="#collecting-air-travel-prices">Collecting Air Travel Prices</a></li>
+  <li><a href="#determinants-of-air-travel" id="toc-determinants-of-air-travel" class="nav-link" data-scroll-target="#determinants-of-air-travel">Determinants of Air Travel</a></li>
+  <li><a href="#results-panel-of-regional-airfare-prices" id="toc-results-panel-of-regional-airfare-prices" class="nav-link" data-scroll-target="#results-panel-of-regional-airfare-prices">Results: Panel of Regional Airfare Prices</a></li>
+  <li><a href="#visualization-of-the-predicted-time-series-with-the-oil-price-data" id="toc-visualization-of-the-predicted-time-series-with-the-oil-price-data" class="nav-link" data-scroll-target="#visualization-of-the-predicted-time-series-with-the-oil-price-data">Visualization of the predicted time series with the oil price data</a></li>
+  <li><a href="#final-2019-estimates-of-region-to-reion-airfare-prices" id="toc-final-2019-estimates-of-region-to-reion-airfare-prices" class="nav-link" data-scroll-target="#final-2019-estimates-of-region-to-reion-airfare-prices">Final 2019 Estimates of Region to Reion Airfare prices</a></li>
+  <li><a href="#air-travel-data-sources" id="toc-air-travel-data-sources" class="nav-link" data-scroll-target="#air-travel-data-sources">Air Travel Data Sources</a></li>
+  </ul>
+</nav>
+</div>
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Predicting Backward Panel of Air Travel Regional Prices</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Ryan McWay </p>
+          </div>
+  </div>
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="method" class="level1">
+<h1>Method</h1>
+<p>This attempts to predict the backward panel of air travel regional prices by collecting and analyzing airfare data from major transit hubs across different continents. Using a cross-section of major transit hubs, I aim to capture airfare prices for five major transit hubs in each continent. I then correlate these prices to the geographic distance and oil prices. For here, I can produce a cross-sectional mapping of airfare prices across different regions in 2019 which can be used in the nature tourism GEP estimates.</p>
+</section>
+<section id="collecting-air-travel-prices" class="level1">
+<h1>Collecting Air Travel Prices</h1>
+<p>In this section, I generate a matrix of orgin-destination prices for various air travel routes. This was collected on Sept.&nbsp;8th, 2026. The search assumptions is for a round trip journey for 1 person without any checked luggage. The round trip is assumed to be 1 week flying from Friday to Friday (e.g., Sept.&nbsp;11th - Sept.&nbsp;18th). The prices are presented in USD. Flights are filtered by “Best” and sorted by “Price”. I record and average the first five flights that are presented. I use <code>flightlist</code> instead of <code>Google Flights</code> for data collection: https://www.flightlist.io/ This is because it requires no API to query, is free, and the platform is simple.</p>
+<p>Travel nodes are selected from the most traveled transit hubs globally, as identified by Wikipedia: https://en.wikipedia.org/wiki/List_of_busiest_airports_by_passenger_traffic Some of the regions are not limited on this list. So I supplement using: - Africa: https://en.wikipedia.org/wiki/List_of_the_busiest_airports_in_Africa - South America: https://en.wikipedia.org/wiki/List_of_the_busiest_airports_in_South_America - Oceania: https://en.wikipedia.org/wiki/List_of_the_busiest_airports_in_Oceania The aim of the exercise is to get a range (IQR) for air travel prices by region/contient. So, I take the top five hubs for the following regions: - North America - Europe - Asia - South America - Africa - Oceania From here, I can then construct a matrix of every hub to any other hub. This provide both between and within airfare price comparisions. So this data wil be averaged across flights for O-D pairs, then aggregated by O-D pairs to the regional or continental level.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Clear environment to restart </span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">rm</span>(<span class="at">list =</span> <span class="fu">ls</span>())</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="co"># List the regional hubs for each continent</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>hubs_NA <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"Hartsfield–Jackson Atlanta International Airport"</span>, </span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Dallas Fort Worth International Airport"</span>, </span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    <span class="st">"O'Hare International Airport"</span>, </span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Denver International Airport"</span>, </span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Los Angeles International Airport"</span>)</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>hubs_EU <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"Heathrow Airport"</span>, </span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Istanbul Airport"</span>, </span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Charles de Gaulle Airport"</span>, </span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Amsterdam Airport Schiphol"</span>, </span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Adolfo Suárez Madrid–Barajas Airport"</span>)</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>hubs_AS <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"Dubai International Airport"</span>, </span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Tokyo Haneda Airport"</span>, </span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Shanghai Pudong International Airport"</span>, </span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Guangzhou Baiyun International Airport"</span>, </span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Indira Gandhi International Airport"</span>)</span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>hubs_SA <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"El Dorado International Airport"</span>, </span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>    <span class="st">"São Paulo–Guarulhos International Airport"</span>, </span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Jorge Chávez International Airport"</span>, </span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Arturo Merino Benítez International Airport"</span>, </span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>    <span class="st">"São Paulo–Congonhas Airport"</span>)</span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>hubs_AF <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"Cairo International Airport"</span>, </span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>    <span class="st">"OR Tambo International Airport"</span>, </span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Bole International Airport"</span>, </span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Mohammed V International Airport"</span>, </span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Hurghada International Airport"</span>)</span>
+<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a>hubs_OC <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"Sydney Airport"</span>,</span>
+<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Melbourne Airport"</span>, </span>
+<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Brisbane Airport"</span>, </span>
+<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Auckland Airport"</span>, </span>
+<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Daniel K. Inouye International Airport"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># For each hub, add rank number and region category variables. </span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>hubs_NA <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">hub =</span> hubs_NA, <span class="at">rank =</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">5</span>, <span class="at">region =</span> <span class="st">"North America"</span>)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>hubs_EU <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">hub =</span> hubs_EU, <span class="at">rank =</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">5</span>, <span class="at">region =</span> <span class="st">"Europe"</span>)</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>hubs_AS <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">hub =</span> hubs_AS, <span class="at">rank =</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">5</span>, <span class="at">region =</span> <span class="st">"Asia"</span>)</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>hubs_SA <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">hub =</span> hubs_SA, <span class="at">rank =</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">5</span>, <span class="at">region =</span> <span class="st">"South America"</span>)</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>hubs_AF <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">hub =</span> hubs_AF, <span class="at">rank =</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">5</span>, <span class="at">region =</span> <span class="st">"Africa"</span>)</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>hubs_OC <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">hub =</span> hubs_OC, <span class="at">rank =</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">5</span>, <span class="at">region =</span> <span class="st">"Oceania"</span>)</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="co"># All hubs</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>all_hubs <span class="ot">&lt;-</span> <span class="fu">rbind</span>(hubs_NA, hubs_EU, hubs_AS, hubs_SA, hubs_AF, hubs_OC)</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Print the list: </span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(all_hubs)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                                                hub rank        region
+1  Hartsfield–Jackson Atlanta International Airport    1 North America
+2           Dallas Fort Worth International Airport    2 North America
+3                      O'Hare International Airport    3 North America
+4                      Denver International Airport    4 North America
+5                 Los Angeles International Airport    5 North America
+6                                  Heathrow Airport    1        Europe
+7                                  Istanbul Airport    2        Europe
+8                         Charles de Gaulle Airport    3        Europe
+9                        Amsterdam Airport Schiphol    4        Europe
+10             Adolfo Suárez Madrid–Barajas Airport    5        Europe
+11                      Dubai International Airport    1          Asia
+12                             Tokyo Haneda Airport    2          Asia
+13            Shanghai Pudong International Airport    3          Asia
+14           Guangzhou Baiyun International Airport    4          Asia
+15              Indira Gandhi International Airport    5          Asia
+16                  El Dorado International Airport    1 South America
+17        São Paulo–Guarulhos International Airport    2 South America
+18               Jorge Chávez International Airport    3 South America
+19      Arturo Merino Benítez International Airport    4 South America
+20                      São Paulo–Congonhas Airport    5 South America
+21                      Cairo International Airport    1        Africa
+22                   OR Tambo International Airport    2        Africa
+23                       Bole International Airport    3        Africa
+24                 Mohammed V International Airport    4        Africa
+25                   Hurghada International Airport    5        Africa
+26                                   Sydney Airport    1       Oceania
+27                                Melbourne Airport    2       Oceania
+28                                 Brisbane Airport    3       Oceania
+29                                 Auckland Airport    4       Oceania
+30           Daniel K. Inouye International Airport    5       Oceania</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Construct the matrix of regional hubs to generate all possible O-D pairings</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>od_pairs <span class="ot">&lt;-</span> <span class="fu">expand.grid</span>(<span class="at">origin =</span> all_hubs<span class="sc">$</span>hub, <span class="at">destination =</span> all_hubs<span class="sc">$</span>hub)</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>od_pairs <span class="ot">&lt;-</span> <span class="fu">merge</span>(od_pairs, all_hubs[, <span class="fu">c</span>(<span class="st">"hub"</span>, <span class="st">"region"</span>)], <span class="at">by.x =</span> <span class="st">"origin"</span>, <span class="at">by.y =</span> <span class="st">"hub"</span>)</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>od_pairs <span class="ot">&lt;-</span> <span class="fu">merge</span>(od_pairs, all_hubs[, <span class="fu">c</span>(<span class="st">"hub"</span>, <span class="st">"region"</span>)], <span class="at">by.x =</span> <span class="st">"destination"</span>, <span class="at">by.y =</span> <span class="st">"hub"</span>)</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="fu">colnames</span>(od_pairs)[<span class="dv">3</span><span class="sc">:</span><span class="dv">4</span>] <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"origin_region"</span>, <span class="st">"destination_region"</span>)</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>od_pairs<span class="sc">$</span>pair_id <span class="ot">&lt;-</span> <span class="dv">1</span><span class="sc">:</span><span class="fu">nrow</span>(od_pairs)</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Remove all self-referencing pairs (origin &amp; destination are same)</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>    <span class="co"># These are meaningless pairings (do not fly to your own hub)</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>od_pairs <span class="ot">&lt;-</span> od_pairs[od_pairs<span class="sc">$</span>origin <span class="sc">!=</span> od_pairs<span class="sc">$</span>destination, ]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Determine distance between airports </span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Match the hub names above to stable IATA airport codes.</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>hub_iata <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Hartsfield–Jackson Atlanta International Airport"</span> <span class="ot">=</span> <span class="st">"ATL"</span>,</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Dallas Fort Worth International Airport"</span> <span class="ot">=</span> <span class="st">"DFW"</span>,</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>    <span class="st">"O'Hare International Airport"</span> <span class="ot">=</span> <span class="st">"ORD"</span>,</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Denver International Airport"</span> <span class="ot">=</span> <span class="st">"DEN"</span>,</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Los Angeles International Airport"</span> <span class="ot">=</span> <span class="st">"LAX"</span>,</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Heathrow Airport"</span> <span class="ot">=</span> <span class="st">"LHR"</span>,</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Istanbul Airport"</span> <span class="ot">=</span> <span class="st">"IST"</span>,</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Charles de Gaulle Airport"</span> <span class="ot">=</span> <span class="st">"CDG"</span>,</span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Amsterdam Airport Schiphol"</span> <span class="ot">=</span> <span class="st">"AMS"</span>,</span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Adolfo Suárez Madrid–Barajas Airport"</span> <span class="ot">=</span> <span class="st">"MAD"</span>,</span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Dubai International Airport"</span> <span class="ot">=</span> <span class="st">"DXB"</span>,</span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Tokyo Haneda Airport"</span> <span class="ot">=</span> <span class="st">"HND"</span>,</span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Shanghai Pudong International Airport"</span> <span class="ot">=</span> <span class="st">"PVG"</span>,</span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Guangzhou Baiyun International Airport"</span> <span class="ot">=</span> <span class="st">"CAN"</span>,</span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Indira Gandhi International Airport"</span> <span class="ot">=</span> <span class="st">"DEL"</span>,</span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>    <span class="st">"El Dorado International Airport"</span> <span class="ot">=</span> <span class="st">"BOG"</span>,</span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>    <span class="st">"São Paulo–Guarulhos International Airport"</span> <span class="ot">=</span> <span class="st">"GRU"</span>,</span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Jorge Chávez International Airport"</span> <span class="ot">=</span> <span class="st">"LIM"</span>,</span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Arturo Merino Benítez International Airport"</span> <span class="ot">=</span> <span class="st">"SCL"</span>,</span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>    <span class="st">"São Paulo–Congonhas Airport"</span> <span class="ot">=</span> <span class="st">"CGH"</span>,</span>
+<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Cairo International Airport"</span> <span class="ot">=</span> <span class="st">"CAI"</span>,</span>
+<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a>    <span class="st">"OR Tambo International Airport"</span> <span class="ot">=</span> <span class="st">"JNB"</span>,</span>
+<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Bole International Airport"</span> <span class="ot">=</span> <span class="st">"ADD"</span>,</span>
+<span id="cb5-28"><a href="#cb5-28" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Mohammed V International Airport"</span> <span class="ot">=</span> <span class="st">"CMN"</span>,</span>
+<span id="cb5-29"><a href="#cb5-29" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Hurghada International Airport"</span> <span class="ot">=</span> <span class="st">"HRG"</span>,</span>
+<span id="cb5-30"><a href="#cb5-30" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Sydney Airport"</span> <span class="ot">=</span> <span class="st">"SYD"</span>,</span>
+<span id="cb5-31"><a href="#cb5-31" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Melbourne Airport"</span> <span class="ot">=</span> <span class="st">"MEL"</span>,</span>
+<span id="cb5-32"><a href="#cb5-32" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Brisbane Airport"</span> <span class="ot">=</span> <span class="st">"BNE"</span>,</span>
+<span id="cb5-33"><a href="#cb5-33" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Auckland Airport"</span> <span class="ot">=</span> <span class="st">"AKL"</span>,</span>
+<span id="cb5-34"><a href="#cb5-34" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Daniel K. Inouye International Airport"</span> <span class="ot">=</span> <span class="st">"HNL"</span></span>
+<span id="cb5-35"><a href="#cb5-35" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb5-36"><a href="#cb5-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-37"><a href="#cb5-37" aria-hidden="true" tabindex="-1"></a><span class="co"># Download airport coordinates. The source stores coordinates as longitude, latitude.</span></span>
+<span id="cb5-38"><a href="#cb5-38" aria-hidden="true" tabindex="-1"></a>airport_data <span class="ot">&lt;-</span> <span class="fu">read.csv</span>(</span>
+<span id="cb5-39"><a href="#cb5-39" aria-hidden="true" tabindex="-1"></a>    <span class="st">"https://raw.githubusercontent.com/datasets/airport-codes/master/data/airport-codes.csv"</span>,</span>
+<span id="cb5-40"><a href="#cb5-40" aria-hidden="true" tabindex="-1"></a>    <span class="at">stringsAsFactors =</span> <span class="cn">FALSE</span></span>
+<span id="cb5-41"><a href="#cb5-41" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb5-42"><a href="#cb5-42" aria-hidden="true" tabindex="-1"></a>airport_locations <span class="ot">&lt;-</span> airport_data[<span class="fu">match</span>(<span class="fu">unname</span>(hub_iata), airport_data<span class="sc">$</span>iata_code), ]</span>
+<span id="cb5-43"><a href="#cb5-43" aria-hidden="true" tabindex="-1"></a>airport_locations<span class="sc">$</span>hub <span class="ot">&lt;-</span> <span class="fu">names</span>(hub_iata)</span>
+<span id="cb5-44"><a href="#cb5-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-45"><a href="#cb5-45" aria-hidden="true" tabindex="-1"></a><span class="co"># Match airport coordinates to O-D pairs</span></span>
+<span id="cb5-46"><a href="#cb5-46" aria-hidden="true" tabindex="-1"></a>coordinates <span class="ot">&lt;-</span> <span class="fu">do.call</span>(</span>
+<span id="cb5-47"><a href="#cb5-47" aria-hidden="true" tabindex="-1"></a>    rbind,</span>
+<span id="cb5-48"><a href="#cb5-48" aria-hidden="true" tabindex="-1"></a>    <span class="fu">strsplit</span>(airport_locations<span class="sc">$</span>coordinates, <span class="st">", "</span>, <span class="at">fixed =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb5-49"><a href="#cb5-49" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb5-50"><a href="#cb5-50" aria-hidden="true" tabindex="-1"></a>airport_locations<span class="sc">$</span>longitude <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(coordinates[, <span class="dv">1</span>])</span>
+<span id="cb5-51"><a href="#cb5-51" aria-hidden="true" tabindex="-1"></a>airport_locations<span class="sc">$</span>latitude <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(coordinates[, <span class="dv">2</span>])</span>
+<span id="cb5-52"><a href="#cb5-52" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-53"><a href="#cb5-53" aria-hidden="true" tabindex="-1"></a><span class="co"># Calculate great-circle distance in kilometers using the Haversine formula.</span></span>
+<span id="cb5-54"><a href="#cb5-54" aria-hidden="true" tabindex="-1"></a>haversine_km <span class="ot">&lt;-</span> <span class="cf">function</span>(lon1, lat1, lon2, lat2) {</span>
+<span id="cb5-55"><a href="#cb5-55" aria-hidden="true" tabindex="-1"></a>    radians <span class="ot">&lt;-</span> pi <span class="sc">/</span> <span class="dv">180</span></span>
+<span id="cb5-56"><a href="#cb5-56" aria-hidden="true" tabindex="-1"></a>    delta_lon <span class="ot">&lt;-</span> (lon2 <span class="sc">-</span> lon1) <span class="sc">*</span> radians</span>
+<span id="cb5-57"><a href="#cb5-57" aria-hidden="true" tabindex="-1"></a>    delta_lat <span class="ot">&lt;-</span> (lat2 <span class="sc">-</span> lat1) <span class="sc">*</span> radians</span>
+<span id="cb5-58"><a href="#cb5-58" aria-hidden="true" tabindex="-1"></a>    a <span class="ot">&lt;-</span> <span class="fu">sin</span>(delta_lat <span class="sc">/</span> <span class="dv">2</span>)<span class="sc">^</span><span class="dv">2</span> <span class="sc">+</span></span>
+<span id="cb5-59"><a href="#cb5-59" aria-hidden="true" tabindex="-1"></a>        <span class="fu">cos</span>(lat1 <span class="sc">*</span> radians) <span class="sc">*</span> <span class="fu">cos</span>(lat2 <span class="sc">*</span> radians) <span class="sc">*</span> <span class="fu">sin</span>(delta_lon <span class="sc">/</span> <span class="dv">2</span>)<span class="sc">^</span><span class="dv">2</span></span>
+<span id="cb5-60"><a href="#cb5-60" aria-hidden="true" tabindex="-1"></a>    <span class="dv">6371</span> <span class="sc">*</span> <span class="dv">2</span> <span class="sc">*</span> <span class="fu">asin</span>(<span class="fu">sqrt</span>(a))</span>
+<span id="cb5-61"><a href="#cb5-61" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb5-62"><a href="#cb5-62" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-63"><a href="#cb5-63" aria-hidden="true" tabindex="-1"></a>origin_locations <span class="ot">&lt;-</span> airport_locations[<span class="fu">match</span>(od_pairs<span class="sc">$</span>origin, airport_locations<span class="sc">$</span>hub), ]</span>
+<span id="cb5-64"><a href="#cb5-64" aria-hidden="true" tabindex="-1"></a>destination_locations <span class="ot">&lt;-</span> airport_locations[<span class="fu">match</span>(od_pairs<span class="sc">$</span>destination, airport_locations<span class="sc">$</span>hub), ]</span>
+<span id="cb5-65"><a href="#cb5-65" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-66"><a href="#cb5-66" aria-hidden="true" tabindex="-1"></a><span class="co"># Calculate distance</span></span>
+<span id="cb5-67"><a href="#cb5-67" aria-hidden="true" tabindex="-1"></a>od_pairs<span class="sc">$</span>distance_km <span class="ot">&lt;-</span> <span class="fu">haversine_km</span>(</span>
+<span id="cb5-68"><a href="#cb5-68" aria-hidden="true" tabindex="-1"></a>    origin_locations<span class="sc">$</span>longitude,</span>
+<span id="cb5-69"><a href="#cb5-69" aria-hidden="true" tabindex="-1"></a>    origin_locations<span class="sc">$</span>latitude,</span>
+<span id="cb5-70"><a href="#cb5-70" aria-hidden="true" tabindex="-1"></a>    destination_locations<span class="sc">$</span>longitude,</span>
+<span id="cb5-71"><a href="#cb5-71" aria-hidden="true" tabindex="-1"></a>    destination_locations<span class="sc">$</span>latitude</span>
+<span id="cb5-72"><a href="#cb5-72" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Confirm the O-D pairings </span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">paste</span>(<span class="st">"Number of O-D pairs:"</span>, <span class="fu">nrow</span>(od_pairs)))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] "Number of O-D pairs: 870"</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">head</span>(od_pairs))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                           destination
+1 Adolfo Suárez Madrid–Barajas Airport
+2 Adolfo Suárez Madrid–Barajas Airport
+3 Adolfo Suárez Madrid–Barajas Airport
+4 Adolfo Suárez Madrid–Barajas Airport
+5 Adolfo Suárez Madrid–Barajas Airport
+6 Adolfo Suárez Madrid–Barajas Airport
+                                       origin origin_region destination_region
+1                        Tokyo Haneda Airport          Asia             Europe
+2                 São Paulo–Congonhas Airport South America             Europe
+3 Arturo Merino Benítez International Airport South America             Europe
+4              Hurghada International Airport        Africa             Europe
+5                            Brisbane Airport       Oceania             Europe
+6                Denver International Airport North America             Europe
+  pair_id distance_km
+1       1   15910.644
+2       2    7768.039
+3       3    9048.284
+4       4    4383.998
+5       5   12377.082
+6       6   11241.878</code></pre>
+</div>
+</div>
+<p>For each O-D pairing, region, what is distance, first five flights, and the average airfare cost. NOTE BEFORE YOU RUN THIS: This has a long run time!</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Flightlist's browser uses this public JSON endpoint; no API key is required.</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Scrape incomplete routes by default; set this to FALSE for an offline render.</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>scrape_flightlist <span class="ot">&lt;-</span> <span class="cn">TRUE</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>scrape_delay_seconds <span class="ot">&lt;-</span> <span class="fl">0.25</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>outbound_date <span class="ot">&lt;-</span> <span class="st">"2026-09-11"</span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>return_date <span class="ot">&lt;-</span> <span class="st">"2026-09-18"</span></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>od_pairs<span class="sc">$</span>origin_iata <span class="ot">&lt;-</span> <span class="fu">unname</span>(hub_iata[od_pairs<span class="sc">$</span>origin])</span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>od_pairs<span class="sc">$</span>destination_iata <span class="ot">&lt;-</span> <span class="fu">unname</span>(hub_iata[od_pairs<span class="sc">$</span>destination])</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>flight_searches <span class="ot">&lt;-</span> od_pairs[, <span class="fu">c</span>(</span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>    <span class="st">"pair_id"</span>, <span class="st">"origin"</span>, <span class="st">"destination"</span>, <span class="st">"origin_region"</span>,</span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>    <span class="st">"destination_region"</span>, <span class="st">"distance_km"</span>, <span class="st">"origin_iata"</span>, <span class="st">"destination_iata"</span></span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>)]</span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>flight_searches<span class="sc">$</span>outbound_date <span class="ot">&lt;-</span> outbound_date</span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>flight_searches<span class="sc">$</span>return_date <span class="ot">&lt;-</span> return_date</span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>flight_searches<span class="sc">$</span>search_url <span class="ot">&lt;-</span> <span class="st">"https://www.flightlist.io/"</span></span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a>flight_searches<span class="sc">$</span>search_instructions <span class="ot">&lt;-</span> <span class="fu">paste</span>(</span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Search"</span>, flight_searches<span class="sc">$</span>origin_iata, <span class="st">"to"</span>,</span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a>    flight_searches<span class="sc">$</span>destination_iata, <span class="st">"for"</span>, outbound_date,</span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a>    <span class="st">"through"</span>, return_date</span>
+<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a><span class="co"># These columns are populated by the scraper or manual fallback.</span></span>
+<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (column <span class="cf">in</span> <span class="fu">paste0</span>(<span class="st">"flight_"</span>, <span class="dv">1</span><span class="sc">:</span><span class="dv">5</span>, <span class="st">"_usd"</span>)) {</span>
+<span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a>    flight_searches[[column]] <span class="ot">&lt;-</span> <span class="cn">NA_real_</span></span>
+<span id="cb10-27"><a href="#cb10-27" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb10-28"><a href="#cb10-28" aria-hidden="true" tabindex="-1"></a>flight_searches<span class="sc">$</span>average_fare_usd <span class="ot">&lt;-</span> <span class="cn">NA_real_</span></span>
+<span id="cb10-29"><a href="#cb10-29" aria-hidden="true" tabindex="-1"></a>flight_searches<span class="sc">$</span>checked <span class="ot">&lt;-</span> <span class="cn">FALSE</span></span>
+<span id="cb10-30"><a href="#cb10-30" aria-hidden="true" tabindex="-1"></a>flight_searches<span class="sc">$</span>status <span class="ot">&lt;-</span> <span class="st">"manual_required"</span></span>
+<span id="cb10-31"><a href="#cb10-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-32"><a href="#cb10-32" aria-hidden="true" tabindex="-1"></a><span class="co"># Preserve fares already entered in a previous version of the queue.</span></span>
+<span id="cb10-33"><a href="#cb10-33" aria-hidden="true" tabindex="-1"></a>queue_path <span class="ot">&lt;-</span> <span class="st">"flightlist_search_queue.csv"</span></span>
+<span id="cb10-34"><a href="#cb10-34" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="fu">file.exists</span>(queue_path)) {</span>
+<span id="cb10-35"><a href="#cb10-35" aria-hidden="true" tabindex="-1"></a>    previous_searches <span class="ot">&lt;-</span> <span class="fu">read.csv</span>(queue_path, <span class="at">stringsAsFactors =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb10-36"><a href="#cb10-36" aria-hidden="true" tabindex="-1"></a>    previous_rows <span class="ot">&lt;-</span> <span class="fu">match</span>(flight_searches<span class="sc">$</span>pair_id, previous_searches<span class="sc">$</span>pair_id)</span>
+<span id="cb10-37"><a href="#cb10-37" aria-hidden="true" tabindex="-1"></a>    saved_columns <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fu">paste0</span>(<span class="st">"flight_"</span>, <span class="dv">1</span><span class="sc">:</span><span class="dv">5</span>, <span class="st">"_usd"</span>), <span class="st">"checked"</span>, <span class="st">"status"</span>)</span>
+<span id="cb10-38"><a href="#cb10-38" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (column <span class="cf">in</span> saved_columns) {</span>
+<span id="cb10-39"><a href="#cb10-39" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> (column <span class="sc">%in%</span> <span class="fu">names</span>(previous_searches)) {</span>
+<span id="cb10-40"><a href="#cb10-40" aria-hidden="true" tabindex="-1"></a>            flight_searches[[column]] <span class="ot">&lt;-</span> previous_searches[[column]][previous_rows]</span>
+<span id="cb10-41"><a href="#cb10-41" aria-hidden="true" tabindex="-1"></a>        }</span>
+<span id="cb10-42"><a href="#cb10-42" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb10-43"><a href="#cb10-43" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb10-44"><a href="#cb10-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-45"><a href="#cb10-45" aria-hidden="true" tabindex="-1"></a><span class="co"># Normalize cached or manually entered fares before calculating averages.</span></span>
+<span id="cb10-46"><a href="#cb10-46" aria-hidden="true" tabindex="-1"></a>fare_columns <span class="ot">&lt;-</span> <span class="fu">paste0</span>(<span class="st">"flight_"</span>, <span class="dv">1</span><span class="sc">:</span><span class="dv">5</span>, <span class="st">"_usd"</span>)</span>
+<span id="cb10-47"><a href="#cb10-47" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (column <span class="cf">in</span> fare_columns) {</span>
+<span id="cb10-48"><a href="#cb10-48" aria-hidden="true" tabindex="-1"></a>    fare_values <span class="ot">&lt;-</span> <span class="fu">suppressWarnings</span>(<span class="fu">as.numeric</span>(<span class="fu">as.character</span>(flight_searches[[column]])))</span>
+<span id="cb10-49"><a href="#cb10-49" aria-hidden="true" tabindex="-1"></a>    fare_values[<span class="sc">!</span><span class="fu">is.finite</span>(fare_values)] <span class="ot">&lt;-</span> <span class="cn">NA_real_</span></span>
+<span id="cb10-50"><a href="#cb10-50" aria-hidden="true" tabindex="-1"></a>    flight_searches[[column]] <span class="ot">&lt;-</span> fare_values</span>
+<span id="cb10-51"><a href="#cb10-51" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb10-52"><a href="#cb10-52" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-53"><a href="#cb10-53" aria-hidden="true" tabindex="-1"></a>flightlist_query <span class="ot">&lt;-</span> <span class="cf">function</span>(origin_iata, destination_iata,</span>
+<span id="cb10-54"><a href="#cb10-54" aria-hidden="true" tabindex="-1"></a>                            outbound_date, return_date) {</span>
+<span id="cb10-55"><a href="#cb10-55" aria-hidden="true" tabindex="-1"></a>    query <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb10-56"><a href="#cb10-56" aria-hidden="true" tabindex="-1"></a>        <span class="at">fly_from =</span> <span class="fu">paste0</span>(<span class="st">"airport:"</span>, origin_iata),</span>
+<span id="cb10-57"><a href="#cb10-57" aria-hidden="true" tabindex="-1"></a>        <span class="at">fly_to =</span> <span class="fu">paste0</span>(<span class="st">"airport:"</span>, destination_iata),</span>
+<span id="cb10-58"><a href="#cb10-58" aria-hidden="true" tabindex="-1"></a>        <span class="at">date_from =</span> <span class="fu">format</span>(<span class="fu">as.Date</span>(outbound_date), <span class="st">"%d/%m/%Y"</span>),</span>
+<span id="cb10-59"><a href="#cb10-59" aria-hidden="true" tabindex="-1"></a>        <span class="at">date_to =</span> <span class="fu">format</span>(<span class="fu">as.Date</span>(outbound_date), <span class="st">"%d/%m/%Y"</span>),</span>
+<span id="cb10-60"><a href="#cb10-60" aria-hidden="true" tabindex="-1"></a>        <span class="at">return_from =</span> <span class="fu">format</span>(<span class="fu">as.Date</span>(return_date), <span class="st">"%d/%m/%Y"</span>),</span>
+<span id="cb10-61"><a href="#cb10-61" aria-hidden="true" tabindex="-1"></a>        <span class="at">return_to =</span> <span class="fu">format</span>(<span class="fu">as.Date</span>(return_date), <span class="st">"%d/%m/%Y"</span>),</span>
+<span id="cb10-62"><a href="#cb10-62" aria-hidden="true" tabindex="-1"></a>        <span class="at">adults =</span> <span class="st">"1"</span>, <span class="at">children =</span> <span class="st">"0"</span>, <span class="at">infants =</span> <span class="st">"0"</span>,</span>
+<span id="cb10-63"><a href="#cb10-63" aria-hidden="true" tabindex="-1"></a>        <span class="at">selected_cabins =</span> <span class="st">"M"</span>, <span class="at">curr =</span> <span class="st">"USD"</span>, <span class="at">price_to =</span> <span class="st">""</span>,</span>
+<span id="cb10-64"><a href="#cb10-64" aria-hidden="true" tabindex="-1"></a>        <span class="at">limit =</span> <span class="st">"100"</span>, <span class="at">sort =</span> <span class="st">"price"</span>, <span class="at">max_stopovers =</span> <span class="st">"10"</span>,</span>
+<span id="cb10-65"><a href="#cb10-65" aria-hidden="true" tabindex="-1"></a>        <span class="at">max_fly_duration =</span> <span class="st">"60"</span>, <span class="at">stopover_from =</span> <span class="st">"00:00"</span>,</span>
+<span id="cb10-66"><a href="#cb10-66" aria-hidden="true" tabindex="-1"></a>        <span class="at">stopover_to =</span> <span class="st">"48:00"</span>, <span class="at">ret_from_diff_city =</span> <span class="st">"false"</span>,</span>
+<span id="cb10-67"><a href="#cb10-67" aria-hidden="true" tabindex="-1"></a>        <span class="at">ret_to_diff_city =</span> <span class="st">"false"</span>, <span class="at">dtime_from =</span> <span class="st">""</span>, <span class="at">dtime_to =</span> <span class="st">""</span>,</span>
+<span id="cb10-68"><a href="#cb10-68" aria-hidden="true" tabindex="-1"></a>        <span class="at">enable_vi =</span> <span class="st">"true"</span>, <span class="at">flight_type =</span> <span class="st">"return"</span>,</span>
+<span id="cb10-69"><a href="#cb10-69" aria-hidden="true" tabindex="-1"></a>        <span class="at">adult_hand_bag =</span> <span class="st">"0"</span>, <span class="at">adult_hold_bag =</span> <span class="st">"0"</span></span>
+<span id="cb10-70"><a href="#cb10-70" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb10-71"><a href="#cb10-71" aria-hidden="true" tabindex="-1"></a>    encoded_query <span class="ot">&lt;-</span> <span class="fu">paste</span>(</span>
+<span id="cb10-72"><a href="#cb10-72" aria-hidden="true" tabindex="-1"></a>        <span class="fu">paste0</span>(utils<span class="sc">::</span><span class="fu">URLencode</span>(<span class="fu">names</span>(query), <span class="at">reserved =</span> <span class="cn">TRUE</span>), <span class="st">"="</span>,</span>
+<span id="cb10-73"><a href="#cb10-73" aria-hidden="true" tabindex="-1"></a>            utils<span class="sc">::</span><span class="fu">URLencode</span>(<span class="fu">unname</span>(query), <span class="at">reserved =</span> <span class="cn">TRUE</span>)),</span>
+<span id="cb10-74"><a href="#cb10-74" aria-hidden="true" tabindex="-1"></a>        <span class="at">collapse =</span> <span class="st">"&amp;"</span></span>
+<span id="cb10-75"><a href="#cb10-75" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb10-76"><a href="#cb10-76" aria-hidden="true" tabindex="-1"></a>    <span class="fu">paste0</span>(<span class="st">"https://www.flightlist.io/api/search.php?"</span>, encoded_query)</span>
+<span id="cb10-77"><a href="#cb10-77" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb10-78"><a href="#cb10-78" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-79"><a href="#cb10-79" aria-hidden="true" tabindex="-1"></a>scrape_flightlist_prices <span class="ot">&lt;-</span> <span class="cf">function</span>(search, <span class="at">delay_seconds =</span> <span class="dv">1</span>) {</span>
+<span id="cb10-80"><a href="#cb10-80" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> (<span class="sc">!</span><span class="fu">requireNamespace</span>(<span class="st">"jsonlite"</span>, <span class="at">quietly =</span> <span class="cn">TRUE</span>)) {</span>
+<span id="cb10-81"><a href="#cb10-81" aria-hidden="true" tabindex="-1"></a>        <span class="fu">stop</span>(<span class="st">"Install the jsonlite package before scraping Flightlist."</span>)</span>
+<span id="cb10-82"><a href="#cb10-82" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb10-83"><a href="#cb10-83" aria-hidden="true" tabindex="-1"></a>    url <span class="ot">&lt;-</span> <span class="fu">flightlist_query</span>(</span>
+<span id="cb10-84"><a href="#cb10-84" aria-hidden="true" tabindex="-1"></a>        search<span class="sc">$</span>origin_iata, search<span class="sc">$</span>destination_iata,</span>
+<span id="cb10-85"><a href="#cb10-85" aria-hidden="true" tabindex="-1"></a>        search<span class="sc">$</span>outbound_date, search<span class="sc">$</span>return_date</span>
+<span id="cb10-86"><a href="#cb10-86" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb10-87"><a href="#cb10-87" aria-hidden="true" tabindex="-1"></a>    result <span class="ot">&lt;-</span> <span class="fu">tryCatch</span>({</span>
+<span id="cb10-88"><a href="#cb10-88" aria-hidden="true" tabindex="-1"></a>        response_text <span class="ot">&lt;-</span> <span class="fu">paste</span>(<span class="fu">readLines</span>(url, <span class="at">warn =</span> <span class="cn">FALSE</span>), <span class="at">collapse =</span> <span class="st">""</span>)</span>
+<span id="cb10-89"><a href="#cb10-89" aria-hidden="true" tabindex="-1"></a>        jsonlite<span class="sc">::</span><span class="fu">fromJSON</span>(response_text, <span class="at">simplifyVector =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb10-90"><a href="#cb10-90" aria-hidden="true" tabindex="-1"></a>    }, <span class="at">error =</span> <span class="cf">function</span>(error) {</span>
+<span id="cb10-91"><a href="#cb10-91" aria-hidden="true" tabindex="-1"></a>        <span class="fu">list</span>(<span class="at">error =</span> <span class="fu">conditionMessage</span>(error))</span>
+<span id="cb10-92"><a href="#cb10-92" aria-hidden="true" tabindex="-1"></a>    })</span>
+<span id="cb10-93"><a href="#cb10-93" aria-hidden="true" tabindex="-1"></a>    <span class="fu">Sys.sleep</span>(delay_seconds)</span>
+<span id="cb10-94"><a href="#cb10-94" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-95"><a href="#cb10-95" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> (<span class="sc">!</span><span class="fu">is.null</span>(result<span class="sc">$</span>error)) {</span>
+<span id="cb10-96"><a href="#cb10-96" aria-hidden="true" tabindex="-1"></a>        <span class="fu">return</span>(<span class="fu">list</span>(<span class="at">prices =</span> <span class="fu">rep</span>(<span class="cn">NA_real_</span>, <span class="dv">5</span>), <span class="at">status =</span> result<span class="sc">$</span>error))</span>
+<span id="cb10-97"><a href="#cb10-97" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb10-98"><a href="#cb10-98" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> (<span class="fu">length</span>(result<span class="sc">$</span>data) <span class="sc">==</span> <span class="dv">0</span>) {</span>
+<span id="cb10-99"><a href="#cb10-99" aria-hidden="true" tabindex="-1"></a>        <span class="fu">return</span>(<span class="fu">list</span>(<span class="at">prices =</span> <span class="fu">rep</span>(<span class="cn">NA_real_</span>, <span class="dv">5</span>), <span class="at">status =</span> <span class="st">"no_results_manual_required"</span>))</span>
+<span id="cb10-100"><a href="#cb10-100" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb10-101"><a href="#cb10-101" aria-hidden="true" tabindex="-1"></a>    prices <span class="ot">&lt;-</span> <span class="fu">sort</span>(<span class="fu">as.numeric</span>(<span class="fu">vapply</span>(result<span class="sc">$</span>data, <span class="cf">function</span>(flight) {</span>
+<span id="cb10-102"><a href="#cb10-102" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> (<span class="fu">is.null</span>(flight<span class="sc">$</span>price)) <span class="cn">NA_real_</span> <span class="cf">else</span> flight<span class="sc">$</span>price</span>
+<span id="cb10-103"><a href="#cb10-103" aria-hidden="true" tabindex="-1"></a>    }, <span class="fu">numeric</span>(<span class="dv">1</span>))))</span>
+<span id="cb10-104"><a href="#cb10-104" aria-hidden="true" tabindex="-1"></a>    prices <span class="ot">&lt;-</span> prices[<span class="fu">is.finite</span>(prices)]</span>
+<span id="cb10-105"><a href="#cb10-105" aria-hidden="true" tabindex="-1"></a>    prices <span class="ot">&lt;-</span> <span class="fu">c</span>(prices, <span class="fu">rep</span>(<span class="cn">NA_real_</span>, <span class="dv">5</span>))[<span class="dv">1</span><span class="sc">:</span><span class="dv">5</span>]</span>
+<span id="cb10-106"><a href="#cb10-106" aria-hidden="true" tabindex="-1"></a>    <span class="fu">list</span>(</span>
+<span id="cb10-107"><a href="#cb10-107" aria-hidden="true" tabindex="-1"></a>        <span class="at">prices =</span> prices,</span>
+<span id="cb10-108"><a href="#cb10-108" aria-hidden="true" tabindex="-1"></a>        <span class="at">status =</span> <span class="cf">if</span> (<span class="fu">sum</span>(<span class="sc">!</span><span class="fu">is.na</span>(prices)) <span class="sc">==</span> <span class="dv">5</span>) <span class="st">"scraped"</span> <span class="cf">else</span> <span class="st">"fewer_than_five_manual_required"</span></span>
+<span id="cb10-109"><a href="#cb10-109" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb10-110"><a href="#cb10-110" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb10-111"><a href="#cb10-111" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-112"><a href="#cb10-112" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (scrape_flightlist) {</span>
+<span id="cb10-113"><a href="#cb10-113" aria-hidden="true" tabindex="-1"></a>    progress_bar <span class="ot">&lt;-</span> utils<span class="sc">::</span><span class="fu">txtProgressBar</span>(</span>
+<span id="cb10-114"><a href="#cb10-114" aria-hidden="true" tabindex="-1"></a>        <span class="at">min =</span> <span class="dv">0</span>,</span>
+<span id="cb10-115"><a href="#cb10-115" aria-hidden="true" tabindex="-1"></a>        <span class="at">max =</span> <span class="fu">nrow</span>(flight_searches),</span>
+<span id="cb10-116"><a href="#cb10-116" aria-hidden="true" tabindex="-1"></a>        <span class="at">style =</span> <span class="dv">3</span></span>
+<span id="cb10-117"><a href="#cb10-117" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb10-118"><a href="#cb10-118" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-119"><a href="#cb10-119" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (row_number <span class="cf">in</span> <span class="fu">seq_len</span>(<span class="fu">nrow</span>(flight_searches))) {</span>
+<span id="cb10-120"><a href="#cb10-120" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> (<span class="sc">!</span>flight_searches<span class="sc">$</span>checked[row_number]) {</span>
+<span id="cb10-121"><a href="#cb10-121" aria-hidden="true" tabindex="-1"></a>            result <span class="ot">&lt;-</span> <span class="fu">scrape_flightlist_prices</span>(</span>
+<span id="cb10-122"><a href="#cb10-122" aria-hidden="true" tabindex="-1"></a>                flight_searches[row_number, ],</span>
+<span id="cb10-123"><a href="#cb10-123" aria-hidden="true" tabindex="-1"></a>                <span class="at">delay_seconds =</span> scrape_delay_seconds</span>
+<span id="cb10-124"><a href="#cb10-124" aria-hidden="true" tabindex="-1"></a>            )</span>
+<span id="cb10-125"><a href="#cb10-125" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> (result<span class="sc">$</span>status <span class="sc">==</span> <span class="st">"scraped"</span>) {</span>
+<span id="cb10-126"><a href="#cb10-126" aria-hidden="true" tabindex="-1"></a>                flight_searches[row_number, <span class="fu">paste0</span>(<span class="st">"flight_"</span>, <span class="dv">1</span><span class="sc">:</span><span class="dv">5</span>, <span class="st">"_usd"</span>)] <span class="ot">&lt;-</span> result<span class="sc">$</span>prices</span>
+<span id="cb10-127"><a href="#cb10-127" aria-hidden="true" tabindex="-1"></a>            }</span>
+<span id="cb10-128"><a href="#cb10-128" aria-hidden="true" tabindex="-1"></a>            flight_searches<span class="sc">$</span>status[row_number] <span class="ot">&lt;-</span> result<span class="sc">$</span>status</span>
+<span id="cb10-129"><a href="#cb10-129" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-130"><a href="#cb10-130" aria-hidden="true" tabindex="-1"></a>            <span class="co"># Checkpoint after every request so an interrupted render keeps progress.</span></span>
+<span id="cb10-131"><a href="#cb10-131" aria-hidden="true" tabindex="-1"></a>            current_values <span class="ot">&lt;-</span> flight_searches[, fare_columns, drop <span class="ot">=</span> <span class="cn">FALSE</span>]</span>
+<span id="cb10-132"><a href="#cb10-132" aria-hidden="true" tabindex="-1"></a>            flight_searches<span class="sc">$</span>average_fare_usd <span class="ot">&lt;-</span> <span class="fu">rowMeans</span>(current_values, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb10-133"><a href="#cb10-133" aria-hidden="true" tabindex="-1"></a>            flight_searches<span class="sc">$</span>average_fare_usd[</span>
+<span id="cb10-134"><a href="#cb10-134" aria-hidden="true" tabindex="-1"></a>                <span class="fu">is.nan</span>(flight_searches<span class="sc">$</span>average_fare_usd)</span>
+<span id="cb10-135"><a href="#cb10-135" aria-hidden="true" tabindex="-1"></a>            ] <span class="ot">&lt;-</span> <span class="cn">NA_real_</span></span>
+<span id="cb10-136"><a href="#cb10-136" aria-hidden="true" tabindex="-1"></a>            flight_searches<span class="sc">$</span>checked <span class="ot">&lt;-</span> <span class="fu">rowSums</span>(<span class="sc">!</span><span class="fu">is.na</span>(current_values)) <span class="sc">==</span> <span class="dv">5</span></span>
+<span id="cb10-137"><a href="#cb10-137" aria-hidden="true" tabindex="-1"></a>            <span class="fu">write.csv</span>(flight_searches, queue_path, <span class="at">row.names =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb10-138"><a href="#cb10-138" aria-hidden="true" tabindex="-1"></a>        }</span>
+<span id="cb10-139"><a href="#cb10-139" aria-hidden="true" tabindex="-1"></a>        utils<span class="sc">::</span><span class="fu">setTxtProgressBar</span>(progress_bar, row_number)</span>
+<span id="cb10-140"><a href="#cb10-140" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb10-141"><a href="#cb10-141" aria-hidden="true" tabindex="-1"></a>    <span class="fu">close</span>(progress_bar)</span>
+<span id="cb10-142"><a href="#cb10-142" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+  |                                                                            
+  |                                                                      |   0%
+  |                                                                            
+  |                                                                      |   1%
+  |                                                                            
+  |=                                                                     |   1%
+  |                                                                            
+  |=                                                                     |   2%
+  |                                                                            
+  |==                                                                    |   2%
+  |                                                                            
+  |==                                                                    |   3%
+  |                                                                            
+  |==                                                                    |   4%
+  |                                                                            
+  |===                                                                   |   4%
+  |                                                                            
+  |===                                                                   |   5%
+  |                                                                            
+  |====                                                                  |   5%
+  |                                                                            
+  |====                                                                  |   6%
+  |                                                                            
+  |=====                                                                 |   6%
+  |                                                                            
+  |=====                                                                 |   7%
+  |                                                                            
+  |=====                                                                 |   8%
+  |                                                                            
+  |======                                                                |   8%
+  |                                                                            
+  |======                                                                |   9%
+  |                                                                            
+  |=======                                                               |   9%
+  |                                                                            
+  |=======                                                               |  10%
+  |                                                                            
+  |=======                                                               |  11%
+  |                                                                            
+  |========                                                              |  11%
+  |                                                                            
+  |========                                                              |  12%
+  |                                                                            
+  |=========                                                             |  12%
+  |                                                                            
+  |=========                                                             |  13%
+  |                                                                            
+  |=========                                                             |  14%
+  |                                                                            
+  |==========                                                            |  14%
+  |                                                                            
+  |==========                                                            |  15%
+  |                                                                            
+  |===========                                                           |  15%
+  |                                                                            
+  |===========                                                           |  16%
+  |                                                                            
+  |============                                                          |  16%
+  |                                                                            
+  |============                                                          |  17%
+  |                                                                            
+  |============                                                          |  18%
+  |                                                                            
+  |=============                                                         |  18%
+  |                                                                            
+  |=============                                                         |  19%
+  |                                                                            
+  |==============                                                        |  19%
+  |                                                                            
+  |==============                                                        |  20%
+  |                                                                            
+  |==============                                                        |  21%
+  |                                                                            
+  |===============                                                       |  21%
+  |                                                                            
+  |===============                                                       |  22%
+  |                                                                            
+  |================                                                      |  22%
+  |                                                                            
+  |================                                                      |  23%
+  |                                                                            
+  |================                                                      |  24%
+  |                                                                            
+  |=================                                                     |  24%
+  |                                                                            
+  |=================                                                     |  25%
+  |                                                                            
+  |==================                                                    |  25%
+  |                                                                            
+  |==================                                                    |  26%
+  |                                                                            
+  |===================                                                   |  26%
+  |                                                                            
+  |===================                                                   |  27%
+  |                                                                            
+  |===================                                                   |  28%
+  |                                                                            
+  |====================                                                  |  28%
+  |                                                                            
+  |====================                                                  |  29%
+  |                                                                            
+  |=====================                                                 |  29%
+  |                                                                            
+  |=====================                                                 |  30%
+  |                                                                            
+  |=====================                                                 |  31%
+  |                                                                            
+  |======================                                                |  31%
+  |                                                                            
+  |======================                                                |  32%
+  |                                                                            
+  |=======================                                               |  32%
+  |                                                                            
+  |=======================                                               |  33%
+  |                                                                            
+  |=======================                                               |  34%
+  |                                                                            
+  |========================                                              |  34%
+  |                                                                            
+  |========================                                              |  35%
+  |                                                                            
+  |=========================                                             |  35%
+  |                                                                            
+  |=========================                                             |  36%
+  |                                                                            
+  |==========================                                            |  36%
+  |                                                                            
+  |==========================                                            |  37%
+  |                                                                            
+  |==========================                                            |  38%
+  |                                                                            
+  |===========================                                           |  38%
+  |                                                                            
+  |===========================                                           |  39%
+  |                                                                            
+  |============================                                          |  39%
+  |                                                                            
+  |============================                                          |  40%
+  |                                                                            
+  |============================                                          |  41%
+  |                                                                            
+  |=============================                                         |  41%
+  |                                                                            
+  |=============================                                         |  42%
+  |                                                                            
+  |==============================                                        |  42%
+  |                                                                            
+  |==============================                                        |  43%
+  |                                                                            
+  |==============================                                        |  44%
+  |                                                                            
+  |===============================                                       |  44%
+  |                                                                            
+  |===============================                                       |  45%
+  |                                                                            
+  |================================                                      |  45%
+  |                                                                            
+  |================================                                      |  46%
+  |                                                                            
+  |=================================                                     |  46%
+  |                                                                            
+  |=================================                                     |  47%
+  |                                                                            
+  |=================================                                     |  48%
+  |                                                                            
+  |==================================                                    |  48%
+  |                                                                            
+  |==================================                                    |  49%
+  |                                                                            
+  |===================================                                   |  49%
+  |                                                                            
+  |===================================                                   |  50%
+  |                                                                            
+  |===================================                                   |  51%
+  |                                                                            
+  |====================================                                  |  51%
+  |                                                                            
+  |====================================                                  |  52%
+  |                                                                            
+  |=====================================                                 |  52%
+  |                                                                            
+  |=====================================                                 |  53%
+  |                                                                            
+  |=====================================                                 |  54%
+  |                                                                            
+  |======================================                                |  54%
+  |                                                                            
+  |======================================                                |  55%
+  |                                                                            
+  |=======================================                               |  55%
+  |                                                                            
+  |=======================================                               |  56%
+  |                                                                            
+  |========================================                              |  56%
+  |                                                                            
+  |========================================                              |  57%
+  |                                                                            
+  |========================================                              |  58%
+  |                                                                            
+  |=========================================                             |  58%
+  |                                                                            
+  |=========================================                             |  59%
+  |                                                                            
+  |==========================================                            |  59%
+  |                                                                            
+  |==========================================                            |  60%
+  |                                                                            
+  |==========================================                            |  61%
+  |                                                                            
+  |===========================================                           |  61%
+  |                                                                            
+  |===========================================                           |  62%
+  |                                                                            
+  |============================================                          |  62%
+  |                                                                            
+  |============================================                          |  63%
+  |                                                                            
+  |============================================                          |  64%
+  |                                                                            
+  |=============================================                         |  64%
+  |                                                                            
+  |=============================================                         |  65%
+  |                                                                            
+  |==============================================                        |  65%
+  |                                                                            
+  |==============================================                        |  66%
+  |                                                                            
+  |===============================================                       |  66%
+  |                                                                            
+  |===============================================                       |  67%
+  |                                                                            
+  |===============================================                       |  68%
+  |                                                                            
+  |================================================                      |  68%
+  |                                                                            
+  |================================================                      |  69%
+  |                                                                            
+  |=================================================                     |  69%
+  |                                                                            
+  |=================================================                     |  70%
+  |                                                                            
+  |=================================================                     |  71%
+  |                                                                            
+  |==================================================                    |  71%
+  |                                                                            
+  |==================================================                    |  72%
+  |                                                                            
+  |===================================================                   |  72%
+  |                                                                            
+  |===================================================                   |  73%
+  |                                                                            
+  |===================================================                   |  74%
+  |                                                                            
+  |====================================================                  |  74%
+  |                                                                            
+  |====================================================                  |  75%
+  |                                                                            
+  |=====================================================                 |  75%
+  |                                                                            
+  |=====================================================                 |  76%
+  |                                                                            
+  |======================================================                |  76%
+  |                                                                            
+  |======================================================                |  77%
+  |                                                                            
+  |======================================================                |  78%
+  |                                                                            
+  |=======================================================               |  78%
+  |                                                                            
+  |=======================================================               |  79%
+  |                                                                            
+  |========================================================              |  79%
+  |                                                                            
+  |========================================================              |  80%
+  |                                                                            
+  |========================================================              |  81%
+  |                                                                            
+  |=========================================================             |  81%
+  |                                                                            
+  |=========================================================             |  82%
+  |                                                                            
+  |==========================================================            |  82%
+  |                                                                            
+  |==========================================================            |  83%
+  |                                                                            
+  |==========================================================            |  84%
+  |                                                                            
+  |===========================================================           |  84%
+  |                                                                            
+  |===========================================================           |  85%
+  |                                                                            
+  |============================================================          |  85%
+  |                                                                            
+  |============================================================          |  86%
+  |                                                                            
+  |=============================================================         |  86%
+  |                                                                            
+  |=============================================================         |  87%
+  |                                                                            
+  |=============================================================         |  88%
+  |                                                                            
+  |==============================================================        |  88%
+  |                                                                            
+  |==============================================================        |  89%
+  |                                                                            
+  |===============================================================       |  89%
+  |                                                                            
+  |===============================================================       |  90%
+  |                                                                            
+  |===============================================================       |  91%
+  |                                                                            
+  |================================================================      |  91%
+  |                                                                            
+  |================================================================      |  92%
+  |                                                                            
+  |=================================================================     |  92%
+  |                                                                            
+  |=================================================================     |  93%
+  |                                                                            
+  |=================================================================     |  94%
+  |                                                                            
+  |==================================================================    |  94%
+  |                                                                            
+  |==================================================================    |  95%
+  |                                                                            
+  |===================================================================   |  95%
+  |                                                                            
+  |===================================================================   |  96%
+  |                                                                            
+  |====================================================================  |  96%
+  |                                                                            
+  |====================================================================  |  97%
+  |                                                                            
+  |====================================================================  |  98%
+  |                                                                            
+  |===================================================================== |  98%
+  |                                                                            
+  |===================================================================== |  99%
+  |                                                                            
+  |======================================================================|  99%
+  |                                                                            
+  |======================================================================| 100%</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Recalculate the average from the first five fares and preserve manual entries.</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>flight_values <span class="ot">&lt;-</span> flight_searches[, fare_columns, drop <span class="ot">=</span> <span class="cn">FALSE</span>]</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>flight_searches<span class="sc">$</span>average_fare_usd <span class="ot">&lt;-</span> <span class="fu">rowMeans</span>(flight_values, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>flight_searches<span class="sc">$</span>average_fare_usd[<span class="fu">is.nan</span>(flight_searches<span class="sc">$</span>average_fare_usd)] <span class="ot">&lt;-</span> <span class="cn">NA_real_</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>flight_searches<span class="sc">$</span>checked <span class="ot">&lt;-</span> <span class="fu">rowSums</span>(<span class="sc">!</span><span class="fu">is.na</span>(flight_values)) <span class="sc">==</span> <span class="dv">5</span></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>flight_searches<span class="sc">$</span>status[flight_searches<span class="sc">$</span>checked] <span class="ot">&lt;-</span> <span class="st">"scraped"</span></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a><span class="fu">write.csv</span>(flight_searches, queue_path, <span class="at">row.names =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Open Flightlist while working through the queue. Use the printed</span></span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a><span class="co"># search_instructions to enter the route and dates in the browser form.</span></span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>open_flightlist_search <span class="ot">&lt;-</span> <span class="cf">function</span>(pair_id) {</span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>    search <span class="ot">&lt;-</span> flight_searches[flight_searches<span class="sc">$</span>pair_id <span class="sc">==</span> pair_id, ]</span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> (<span class="fu">nrow</span>(search) <span class="sc">!=</span> <span class="dv">1</span>) {</span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a>        <span class="fu">stop</span>(<span class="st">"pair_id must identify exactly one O-D pairing."</span>)</span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a>    utils<span class="sc">::</span><span class="fu">browseURL</span>(search<span class="sc">$</span>search_url)</span>
+<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a>    <span class="fu">invisible</span>(search)</span>
+<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(flight_searches[<span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>, <span class="fu">c</span>(</span>
+<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a>    <span class="st">"pair_id"</span>, <span class="st">"origin_iata"</span>, <span class="st">"destination_iata"</span>, <span class="st">"search_instructions"</span></span>
+<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a>)])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>  pair_id origin_iata destination_iata
+1       1         HND              MAD
+2       2         CGH              MAD
+3       3         SCL              MAD
+                                  search_instructions
+1 Search HND to MAD for 2026-09-11 through 2026-09-18
+2 Search CGH to MAD for 2026-09-11 through 2026-09-18
+3 Search SCL to MAD for 2026-09-11 through 2026-09-18</code></pre>
+</div>
+</div>
+</section>
+<section id="determinants-of-air-travel" class="level1">
+<h1>Determinants of Air Travel</h1>
+<p>We have a cross-section of O-D prices globally. What we need is to construct a backward panel dataset that captures historical air travel prices for these O-D pairs over time. To achieve this, we can correlate (via regression) the relationship of determinants of air travel to the price of airfare. In prinicpal, match the prices to what is driving the price over time. We assume that the two major things that drive the price are distance and the transportation cost. Distance is assumed constant over time (e.g., new major transit hubs are not introduced/created over time reducing distance). For transportation cost, we assume that oil prices are a key driver and fluctuate over time, impacting airfare accordingly.</p>
+<p>We use the US EIA (Energy Information Administration) data on historical oil prices as a proxy for transportation costs. This allows us to model how fluctuations in oil prices impact air travel prices over time. https://www.eia.gov/dnav/pet/hist/LeafHandler.ashx?n=pet&amp;s=f000000__3&amp;f=m</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Load oil data</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="co"># oil_data_path &lt;- "F:\\GEP\\GEP_recreation\\data\\us_crude_oil_price_historic_quarters.xls"</span></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a><span class="co"># oil_data &lt;- rio::import(oil_data_path, sheet = 2)</span></span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>oil_regional_path <span class="ot">&lt;-</span> <span class="st">"F:</span><span class="sc">\\</span><span class="st">GEP</span><span class="sc">\\</span><span class="st">GEP_recreation</span><span class="sc">\\</span><span class="st">data</span><span class="sc">\\</span><span class="st">crude_oil_historic_monthly_regional.xls"</span></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>oil_regional_data <span class="ot">&lt;-</span> rio<span class="sc">::</span><span class="fu">import</span>(oil_regional_path, <span class="at">sheet =</span> <span class="dv">2</span>) </span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Keep the oil observation used for the airfare cross-section.</span></span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>oil_regional_data_merge <span class="ot">&lt;-</span> oil_regional_data[<span class="dv">500</span>, , drop <span class="ot">=</span> <span class="cn">FALSE</span>]</span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Assign each origin region to its oil-price series.</span></span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a>region_oil_map <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">origin_region =</span> <span class="fu">c</span>(</span>
+<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a>        <span class="st">"North America"</span>, <span class="st">"Europe"</span>, <span class="st">"Asia"</span>, <span class="st">"South America"</span>,</span>
+<span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Africa"</span>, <span class="st">"Oceania"</span></span>
+<span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a>    ),</span>
+<span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">oil_variable =</span> <span class="fu">c</span>(</span>
+<span id="cb14-16"><a href="#cb14-16" aria-hidden="true" tabindex="-1"></a>        <span class="st">"price_barrel_gen"</span>,       <span class="co"># North America: USA/general price</span></span>
+<span id="cb14-17"><a href="#cb14-17" aria-hidden="true" tabindex="-1"></a>        <span class="st">"price_barrel_opec"</span>,      <span class="co"># Europe: OPEC price</span></span>
+<span id="cb14-18"><a href="#cb14-18" aria-hidden="true" tabindex="-1"></a>        <span class="st">"price_barrel_persian_gulf"</span>, <span class="co"># Asia: Persian Gulf price</span></span>
+<span id="cb14-19"><a href="#cb14-19" aria-hidden="true" tabindex="-1"></a>        <span class="st">"price_barrel_non_opec"</span>,  <span class="co"># South America: non-OPEC price</span></span>
+<span id="cb14-20"><a href="#cb14-20" aria-hidden="true" tabindex="-1"></a>        <span class="st">"price_barrel_non_opec"</span>,  <span class="co"># Africa: non-OPEC price</span></span>
+<span id="cb14-21"><a href="#cb14-21" aria-hidden="true" tabindex="-1"></a>        <span class="st">"price_barrel_non_opec"</span>   <span class="co"># Oceania: non-OPEC price</span></span>
+<span id="cb14-22"><a href="#cb14-22" aria-hidden="true" tabindex="-1"></a>    ),</span>
+<span id="cb14-23"><a href="#cb14-23" aria-hidden="true" tabindex="-1"></a>    <span class="at">stringsAsFactors =</span> <span class="cn">FALSE</span></span>
+<span id="cb14-24"><a href="#cb14-24" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb14-25"><a href="#cb14-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-26"><a href="#cb14-26" aria-hidden="true" tabindex="-1"></a>airfare_data <span class="ot">&lt;-</span> <span class="fu">merge</span>(</span>
+<span id="cb14-27"><a href="#cb14-27" aria-hidden="true" tabindex="-1"></a>    od_pairs,</span>
+<span id="cb14-28"><a href="#cb14-28" aria-hidden="true" tabindex="-1"></a>    region_oil_map,</span>
+<span id="cb14-29"><a href="#cb14-29" aria-hidden="true" tabindex="-1"></a>    <span class="at">by =</span> <span class="st">"origin_region"</span>,</span>
+<span id="cb14-30"><a href="#cb14-30" aria-hidden="true" tabindex="-1"></a>    <span class="at">all.x =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb14-31"><a href="#cb14-31" aria-hidden="true" tabindex="-1"></a>    <span class="at">sort =</span> <span class="cn">FALSE</span></span>
+<span id="cb14-32"><a href="#cb14-32" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb14-33"><a href="#cb14-33" aria-hidden="true" tabindex="-1"></a>airfare_data<span class="sc">$</span>oil_price <span class="ot">&lt;-</span> <span class="fu">mapply</span>(</span>
+<span id="cb14-34"><a href="#cb14-34" aria-hidden="true" tabindex="-1"></a>    <span class="cf">function</span>(variable) oil_regional_data_merge[[variable]][<span class="dv">1</span>],</span>
+<span id="cb14-35"><a href="#cb14-35" aria-hidden="true" tabindex="-1"></a>    airfare_data<span class="sc">$</span>oil_variable</span>
+<span id="cb14-36"><a href="#cb14-36" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb14-37"><a href="#cb14-37" aria-hidden="true" tabindex="-1"></a>airfare_data<span class="sc">$</span>oil_date <span class="ot">&lt;-</span> <span class="fu">as.Date</span>(oil_regional_data_merge<span class="sc">$</span>Date[<span class="dv">1</span>])</span>
+<span id="cb14-38"><a href="#cb14-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-39"><a href="#cb14-39" aria-hidden="true" tabindex="-1"></a><span class="co"># Merge the first-five-flight average into the O-D data by pair ID.</span></span>
+<span id="cb14-40"><a href="#cb14-40" aria-hidden="true" tabindex="-1"></a>airfare_data <span class="ot">&lt;-</span> <span class="fu">merge</span>(</span>
+<span id="cb14-41"><a href="#cb14-41" aria-hidden="true" tabindex="-1"></a>    airfare_data,</span>
+<span id="cb14-42"><a href="#cb14-42" aria-hidden="true" tabindex="-1"></a>    flight_searches[, <span class="fu">c</span>(<span class="st">"pair_id"</span>, <span class="st">"average_fare_usd"</span>)],</span>
+<span id="cb14-43"><a href="#cb14-43" aria-hidden="true" tabindex="-1"></a>    <span class="at">by =</span> <span class="st">"pair_id"</span>,</span>
+<span id="cb14-44"><a href="#cb14-44" aria-hidden="true" tabindex="-1"></a>    <span class="at">all.x =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb14-45"><a href="#cb14-45" aria-hidden="true" tabindex="-1"></a>    <span class="at">sort =</span> <span class="cn">FALSE</span></span>
+<span id="cb14-46"><a href="#cb14-46" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ readr     2.1.5
+✔ forcats   1.0.0     ✔ stringr   1.5.1
+✔ ggplot2   3.5.2     ✔ tibble    3.2.1
+✔ lubridate 1.9.4     ✔ tidyr     1.3.1
+✔ purrr     1.0.4     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (&lt;http://conflicted.r-lib.org/&gt;) to force all conflicts to become errors</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Simple Summary statistics by region</span></span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Average flight price</span></span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Average distance</span></span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Overall (not by region) average oil price</span></span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>airfare_data <span class="sc">|&gt;</span></span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>    <span class="fu">group_by</span>(origin_region) <span class="sc">|&gt;</span></span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>    <span class="fu">summarise</span>(</span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a>        <span class="at">average_fare_usd =</span> <span class="fu">mean</span>(average_fare_usd, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a>        <span class="at">average_distance_km =</span> <span class="fu">mean</span>(distance_km, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a>        <span class="at">average_oil_price_usd =</span> <span class="fu">mean</span>(oil_price, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a>    )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 6 × 4
+  origin_region average_fare_usd average_distance_km average_oil_price_usd
+  &lt;chr&gt;                    &lt;dbl&gt;               &lt;dbl&gt;                 &lt;dbl&gt;
+1 Africa                   1288.               9200.                  88.2
+2 Asia                     1207.              10878.                 100. 
+3 Europe                   1011.               8550.                  97.2
+4 North America            1096.               9977.                  91.5
+5 Oceania                  1493.              10680.                  88.2
+6 South America            1716.               9621.                  88.2</code></pre>
+</div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Dependencies</span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(fixest)</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Correlation of oil and distance to air travel prices</span></span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>reg <span class="ot">&lt;-</span> <span class="fu">lm</span>(average_fare_usd <span class="sc">~</span> oil_price <span class="sc">+</span> distance_km, <span class="at">data =</span> airfare_data)</span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(reg)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:
+lm(formula = average_fare_usd ~ oil_price + distance_km, data = airfare_data)
+
+Residuals:
+     Min       1Q   Median       3Q      Max 
+-1298.93  -269.21   -36.31   224.40  2665.05 
+
+Coefficients:
+              Estimate Std. Error t value Pr(&gt;|t|)    
+(Intercept)  3.479e+03  2.841e+02   12.25   &lt;2e-16 ***
+oil_price   -3.359e+01  3.063e+00  -10.97   &lt;2e-16 ***
+distance_km  9.345e-02  2.999e-03   31.16   &lt;2e-16 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+Residual standard error: 428.2 on 865 degrees of freedom
+  (2 observations deleted due to missingness)
+Multiple R-squared:  0.5566,    Adjusted R-squared:  0.5556 
+F-statistic:   543 on 2 and 865 DF,  p-value: &lt; 2.2e-16</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="co"># feols(average_fare_usd ~ oil_price + distance_km | origin_region, data = airfare_data, vcov = "hc3")</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Also do a simple ratio for oil prices to airfares</span></span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>airfare_data<span class="sc">$</span>oil_to_airfare_ratio <span class="ot">&lt;-</span> airfare_data<span class="sc">$</span>oil_price <span class="sc">/</span> airfare_data<span class="sc">$</span>average_fare_usd</span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>airfare_data<span class="sc">$</span>oil_to_airfare_ratio[</span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>    <span class="sc">!</span><span class="fu">is.finite</span>(airfare_data<span class="sc">$</span>oil_to_airfare_ratio)</span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a>] <span class="ot">&lt;-</span> <span class="cn">NA_real_</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="results-panel-of-regional-airfare-prices" class="level1">
+<h1>Results: Panel of Regional Airfare Prices</h1>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Construct the backward monthly panel of O-D airfare prices.</span></span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Each O-D pairing is repeated for every month in the oil-price data.</span></span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>oil_panel <span class="ot">&lt;-</span> oil_regional_data[, <span class="fu">c</span>(</span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Date"</span>, <span class="st">"price_barrel_gen"</span>, <span class="st">"price_barrel_persian_gulf"</span>,</span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">"price_barrel_opec"</span>, <span class="st">"price_barrel_non_opec"</span></span>
+<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a>)]</span>
+<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a>oil_panel<span class="sc">$</span>Date <span class="ot">&lt;-</span> <span class="fu">as.Date</span>(oil_panel<span class="sc">$</span>Date)</span>
+<span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-9"><a href="#cb23-9" aria-hidden="true" tabindex="-1"></a>od_month_panel <span class="ot">&lt;-</span> <span class="fu">merge</span>(</span>
+<span id="cb23-10"><a href="#cb23-10" aria-hidden="true" tabindex="-1"></a>    od_pairs,</span>
+<span id="cb23-11"><a href="#cb23-11" aria-hidden="true" tabindex="-1"></a>    oil_panel,</span>
+<span id="cb23-12"><a href="#cb23-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">by =</span> <span class="cn">NULL</span>,</span>
+<span id="cb23-13"><a href="#cb23-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">all =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb23-14"><a href="#cb23-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">sort =</span> <span class="cn">FALSE</span></span>
+<span id="cb23-15"><a href="#cb23-15" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb23-16"><a href="#cb23-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-17"><a href="#cb23-17" aria-hidden="true" tabindex="-1"></a><span class="co"># Attach the oil series selected for each origin region.</span></span>
+<span id="cb23-18"><a href="#cb23-18" aria-hidden="true" tabindex="-1"></a>od_month_panel <span class="ot">&lt;-</span> <span class="fu">merge</span>(</span>
+<span id="cb23-19"><a href="#cb23-19" aria-hidden="true" tabindex="-1"></a>    od_month_panel,</span>
+<span id="cb23-20"><a href="#cb23-20" aria-hidden="true" tabindex="-1"></a>    region_oil_map,</span>
+<span id="cb23-21"><a href="#cb23-21" aria-hidden="true" tabindex="-1"></a>    <span class="at">by =</span> <span class="st">"origin_region"</span>,</span>
+<span id="cb23-22"><a href="#cb23-22" aria-hidden="true" tabindex="-1"></a>    <span class="at">all.x =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb23-23"><a href="#cb23-23" aria-hidden="true" tabindex="-1"></a>    <span class="at">sort =</span> <span class="cn">FALSE</span></span>
+<span id="cb23-24"><a href="#cb23-24" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb23-25"><a href="#cb23-25" aria-hidden="true" tabindex="-1"></a>od_month_panel<span class="sc">$</span>oil_price <span class="ot">&lt;-</span> <span class="fu">mapply</span>(</span>
+<span id="cb23-26"><a href="#cb23-26" aria-hidden="true" tabindex="-1"></a>    <span class="cf">function</span>(variable, row_number) {</span>
+<span id="cb23-27"><a href="#cb23-27" aria-hidden="true" tabindex="-1"></a>        od_month_panel[row_number, variable]</span>
+<span id="cb23-28"><a href="#cb23-28" aria-hidden="true" tabindex="-1"></a>    },</span>
+<span id="cb23-29"><a href="#cb23-29" aria-hidden="true" tabindex="-1"></a>    od_month_panel<span class="sc">$</span>oil_variable,</span>
+<span id="cb23-30"><a href="#cb23-30" aria-hidden="true" tabindex="-1"></a>    <span class="fu">seq_len</span>(<span class="fu">nrow</span>(od_month_panel))</span>
+<span id="cb23-31"><a href="#cb23-31" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb23-32"><a href="#cb23-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-33"><a href="#cb23-33" aria-hidden="true" tabindex="-1"></a><span class="co"># Preserve observed cross-sectional values for each O-D pair when available.</span></span>
+<span id="cb23-34"><a href="#cb23-34" aria-hidden="true" tabindex="-1"></a>observed_fares <span class="ot">&lt;-</span> airfare_data[, <span class="fu">c</span>(</span>
+<span id="cb23-35"><a href="#cb23-35" aria-hidden="true" tabindex="-1"></a>    <span class="st">"pair_id"</span>, <span class="st">"average_fare_usd"</span>, <span class="st">"oil_to_airfare_ratio"</span></span>
+<span id="cb23-36"><a href="#cb23-36" aria-hidden="true" tabindex="-1"></a>)]</span>
+<span id="cb23-37"><a href="#cb23-37" aria-hidden="true" tabindex="-1"></a>od_month_panel <span class="ot">&lt;-</span> <span class="fu">merge</span>(</span>
+<span id="cb23-38"><a href="#cb23-38" aria-hidden="true" tabindex="-1"></a>    od_month_panel,</span>
+<span id="cb23-39"><a href="#cb23-39" aria-hidden="true" tabindex="-1"></a>    observed_fares,</span>
+<span id="cb23-40"><a href="#cb23-40" aria-hidden="true" tabindex="-1"></a>    <span class="at">by =</span> <span class="st">"pair_id"</span>,</span>
+<span id="cb23-41"><a href="#cb23-41" aria-hidden="true" tabindex="-1"></a>    <span class="at">all.x =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb23-42"><a href="#cb23-42" aria-hidden="true" tabindex="-1"></a>    <span class="at">sort =</span> <span class="cn">FALSE</span></span>
+<span id="cb23-43"><a href="#cb23-43" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb23-44"><a href="#cb23-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-45"><a href="#cb23-45" aria-hidden="true" tabindex="-1"></a><span class="co"># Pull the regression coefficients from the previously estimated model.</span></span>
+<span id="cb23-46"><a href="#cb23-46" aria-hidden="true" tabindex="-1"></a>reg_coefficients <span class="ot">&lt;-</span> <span class="fu">coef</span>(reg)</span>
+<span id="cb23-47"><a href="#cb23-47" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-48"><a href="#cb23-48" aria-hidden="true" tabindex="-1"></a>beta_intercept <span class="ot">&lt;-</span> reg_coefficients[<span class="st">"(Intercept)"</span>]</span>
+<span id="cb23-49"><a href="#cb23-49" aria-hidden="true" tabindex="-1"></a>beta_oil <span class="ot">&lt;-</span> reg_coefficients[<span class="st">"oil_price"</span>]</span>
+<span id="cb23-50"><a href="#cb23-50" aria-hidden="true" tabindex="-1"></a>beta_distance <span class="ot">&lt;-</span> reg_coefficients[<span class="st">"distance_km"</span>]</span>
+<span id="cb23-51"><a href="#cb23-51" aria-hidden="true" tabindex="-1"></a>od_month_panel<span class="sc">$</span>predicted_fare_usd <span class="ot">&lt;-</span> beta_intercept <span class="sc">+</span></span>
+<span id="cb23-52"><a href="#cb23-52" aria-hidden="true" tabindex="-1"></a>    beta_oil <span class="sc">*</span> od_month_panel<span class="sc">$</span>oil_price <span class="sc">+</span></span>
+<span id="cb23-53"><a href="#cb23-53" aria-hidden="true" tabindex="-1"></a>    beta_distance <span class="sc">*</span> od_month_panel<span class="sc">$</span>distance_km</span>
+<span id="cb23-54"><a href="#cb23-54" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-55"><a href="#cb23-55" aria-hidden="true" tabindex="-1"></a><span class="co"># Ratio-based prediction: oil_to_airfare_ratio = oil_price / airfare.</span></span>
+<span id="cb23-56"><a href="#cb23-56" aria-hidden="true" tabindex="-1"></a><span class="co"># Therefore, implied airfare = oil_price / oil_to_airfare_ratio.</span></span>
+<span id="cb23-57"><a href="#cb23-57" aria-hidden="true" tabindex="-1"></a>od_month_panel<span class="sc">$</span>predicted_fare_ratio_usd <span class="ot">&lt;-</span></span>
+<span id="cb23-58"><a href="#cb23-58" aria-hidden="true" tabindex="-1"></a>    od_month_panel<span class="sc">$</span>oil_price <span class="sc">/</span> od_month_panel<span class="sc">$</span>oil_to_airfare_ratio</span>
+<span id="cb23-59"><a href="#cb23-59" aria-hidden="true" tabindex="-1"></a>od_month_panel<span class="sc">$</span>predicted_fare_ratio_usd[</span>
+<span id="cb23-60"><a href="#cb23-60" aria-hidden="true" tabindex="-1"></a>    <span class="sc">!</span><span class="fu">is.finite</span>(od_month_panel<span class="sc">$</span>predicted_fare_ratio_usd)</span>
+<span id="cb23-61"><a href="#cb23-61" aria-hidden="true" tabindex="-1"></a>] <span class="ot">&lt;-</span> <span class="cn">NA_real_</span></span>
+<span id="cb23-62"><a href="#cb23-62" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-63"><a href="#cb23-63" aria-hidden="true" tabindex="-1"></a>od_month_panel<span class="sc">$</span>year <span class="ot">&lt;-</span> <span class="fu">as.integer</span>(<span class="fu">format</span>(od_month_panel<span class="sc">$</span>Date, <span class="st">"%Y"</span>))</span>
+<span id="cb23-64"><a href="#cb23-64" aria-hidden="true" tabindex="-1"></a>od_month_panel<span class="sc">$</span>month <span class="ot">&lt;-</span> <span class="fu">as.integer</span>(<span class="fu">format</span>(od_month_panel<span class="sc">$</span>Date, <span class="st">"%m"</span>))</span>
+<span id="cb23-65"><a href="#cb23-65" aria-hidden="true" tabindex="-1"></a>od_month_panel<span class="sc">$</span>month_year <span class="ot">&lt;-</span> <span class="fu">format</span>(od_month_panel<span class="sc">$</span>Date, <span class="st">"%Y-%m"</span>)</span>
+<span id="cb23-66"><a href="#cb23-66" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-67"><a href="#cb23-67" aria-hidden="true" tabindex="-1"></a>airfare_panel <span class="ot">&lt;-</span> od_month_panel[, <span class="fu">c</span>(</span>
+<span id="cb23-68"><a href="#cb23-68" aria-hidden="true" tabindex="-1"></a>    <span class="st">"pair_id"</span>, <span class="st">"origin"</span>, <span class="st">"destination"</span>, <span class="st">"origin_region"</span>,</span>
+<span id="cb23-69"><a href="#cb23-69" aria-hidden="true" tabindex="-1"></a>    <span class="st">"destination_region"</span>, <span class="st">"distance_km"</span>, <span class="st">"Date"</span>, <span class="st">"year"</span>, <span class="st">"month"</span>,</span>
+<span id="cb23-70"><a href="#cb23-70" aria-hidden="true" tabindex="-1"></a>    <span class="st">"month_year"</span>, <span class="st">"oil_variable"</span>, <span class="st">"oil_price"</span>, <span class="st">"average_fare_usd"</span>,</span>
+<span id="cb23-71"><a href="#cb23-71" aria-hidden="true" tabindex="-1"></a>    <span class="st">"oil_to_airfare_ratio"</span>, <span class="st">"predicted_fare_usd"</span>,</span>
+<span id="cb23-72"><a href="#cb23-72" aria-hidden="true" tabindex="-1"></a>    <span class="st">"predicted_fare_ratio_usd"</span></span>
+<span id="cb23-73"><a href="#cb23-73" aria-hidden="true" tabindex="-1"></a>)]</span>
+<span id="cb23-74"><a href="#cb23-74" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-75"><a href="#cb23-75" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">dim</span>(airfare_panel))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 558540     16</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">head</span>(airfare_panel))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>  pair_id               origin                          destination
+1       1 Tokyo Haneda Airport Adolfo Suárez Madrid–Barajas Airport
+2       1 Tokyo Haneda Airport Adolfo Suárez Madrid–Barajas Airport
+3       1 Tokyo Haneda Airport Adolfo Suárez Madrid–Barajas Airport
+4       1 Tokyo Haneda Airport Adolfo Suárez Madrid–Barajas Airport
+5       1 Tokyo Haneda Airport Adolfo Suárez Madrid–Barajas Airport
+6       1 Tokyo Haneda Airport Adolfo Suárez Madrid–Barajas Airport
+  origin_region destination_region distance_km       Date year month month_year
+1          Asia             Europe    15910.64 1973-01-15 1973     1    1973-01
+2          Asia             Europe    15910.64 2016-02-15 2016     2    2016-02
+3          Asia             Europe    15910.64 1995-11-15 1995    11    1995-11
+4          Asia             Europe    15910.64 1981-11-15 1981    11    1981-11
+5          Asia             Europe    15910.64 1993-04-15 1993     4    1993-04
+6          Asia             Europe    15910.64 2004-09-15 2004     9    2004-09
+               oil_variable oil_price average_fare_usd oil_to_airfare_ratio
+1 price_barrel_persian_gulf        NA           1121.2           0.08917232
+2 price_barrel_persian_gulf     30.91           1121.2           0.08917232
+3 price_barrel_persian_gulf        NA           1121.2           0.08917232
+4 price_barrel_persian_gulf        NA           1121.2           0.08917232
+5 price_barrel_persian_gulf        NA           1121.2           0.08917232
+6 price_barrel_persian_gulf     42.30           1121.2           0.08917232
+  predicted_fare_usd predicted_fare_ratio_usd
+1                 NA                       NA
+2           3927.243                 346.6322
+3                 NA                       NA
+4                 NA                       NA
+5                 NA                       NA
+6           3544.612                 474.3625</code></pre>
+</div>
+</div>
+</section>
+<section id="visualization-of-the-predicted-time-series-with-the-oil-price-data" class="level1">
+<h1>Visualization of the predicted time series with the oil price data</h1>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb27"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Dependencies</span></span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
+<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Average predicted airfare by origin region and month.</span></span>
+<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a>regional_monthly <span class="ot">&lt;-</span> <span class="fu">aggregate</span>(</span>
+<span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a>    predicted_fare_usd <span class="sc">~</span> origin_region <span class="sc">+</span> Date,</span>
+<span id="cb27-6"><a href="#cb27-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">data =</span> airfare_panel,</span>
+<span id="cb27-7"><a href="#cb27-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">FUN =</span> mean,</span>
+<span id="cb27-8"><a href="#cb27-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">na.action =</span> na.omit</span>
+<span id="cb27-9"><a href="#cb27-9" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb27-10"><a href="#cb27-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-11"><a href="#cb27-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Oil is shown once per month on the secondary axis.</span></span>
+<span id="cb27-12"><a href="#cb27-12" aria-hidden="true" tabindex="-1"></a>oil_monthly <span class="ot">&lt;-</span> <span class="fu">aggregate</span>(</span>
+<span id="cb27-13"><a href="#cb27-13" aria-hidden="true" tabindex="-1"></a>    oil_price <span class="sc">~</span> Date,</span>
+<span id="cb27-14"><a href="#cb27-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">data =</span> airfare_panel,</span>
+<span id="cb27-15"><a href="#cb27-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">FUN =</span> mean,</span>
+<span id="cb27-16"><a href="#cb27-16" aria-hidden="true" tabindex="-1"></a>    <span class="at">na.action =</span> na.omit</span>
+<span id="cb27-17"><a href="#cb27-17" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb27-18"><a href="#cb27-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-19"><a href="#cb27-19" aria-hidden="true" tabindex="-1"></a>regional_monthly <span class="ot">&lt;-</span> regional_monthly[<span class="fu">is.finite</span>(regional_monthly<span class="sc">$</span>predicted_fare_usd), ]</span>
+<span id="cb27-20"><a href="#cb27-20" aria-hidden="true" tabindex="-1"></a>oil_monthly <span class="ot">&lt;-</span> oil_monthly[<span class="fu">is.finite</span>(oil_monthly<span class="sc">$</span>oil_price), ]</span>
+<span id="cb27-21"><a href="#cb27-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-22"><a href="#cb27-22" aria-hidden="true" tabindex="-1"></a>fare_max <span class="ot">&lt;-</span> <span class="fu">max</span>(regional_monthly<span class="sc">$</span>predicted_fare_usd, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb27-23"><a href="#cb27-23" aria-hidden="true" tabindex="-1"></a>oil_max <span class="ot">&lt;-</span> <span class="fu">max</span>(oil_monthly<span class="sc">$</span>oil_price, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb27-24"><a href="#cb27-24" aria-hidden="true" tabindex="-1"></a>oil_scale <span class="ot">&lt;-</span> fare_max <span class="sc">/</span> oil_max</span>
+<span id="cb27-25"><a href="#cb27-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-26"><a href="#cb27-26" aria-hidden="true" tabindex="-1"></a><span class="co"># Line graph with regional airfare lines and a separate oil-price axis.</span></span>
+<span id="cb27-27"><a href="#cb27-27" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(regional_monthly, <span class="fu">aes</span>(<span class="at">x =</span> Date)) <span class="sc">+</span></span>
+<span id="cb27-28"><a href="#cb27-28" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_line</span>(</span>
+<span id="cb27-29"><a href="#cb27-29" aria-hidden="true" tabindex="-1"></a>        <span class="fu">aes</span>(<span class="at">y =</span> predicted_fare_usd, <span class="at">color =</span> origin_region),</span>
+<span id="cb27-30"><a href="#cb27-30" aria-hidden="true" tabindex="-1"></a>        <span class="at">linewidth =</span> <span class="fl">0.8</span></span>
+<span id="cb27-31"><a href="#cb27-31" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">+</span></span>
+<span id="cb27-32"><a href="#cb27-32" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_line</span>(</span>
+<span id="cb27-33"><a href="#cb27-33" aria-hidden="true" tabindex="-1"></a>        <span class="at">data =</span> oil_monthly,</span>
+<span id="cb27-34"><a href="#cb27-34" aria-hidden="true" tabindex="-1"></a>        <span class="fu">aes</span>(<span class="at">y =</span> oil_price <span class="sc">*</span> oil_scale, <span class="at">linetype =</span> <span class="st">"Oil price"</span>),</span>
+<span id="cb27-35"><a href="#cb27-35" aria-hidden="true" tabindex="-1"></a>        <span class="at">color =</span> <span class="st">"black"</span>,</span>
+<span id="cb27-36"><a href="#cb27-36" aria-hidden="true" tabindex="-1"></a>        <span class="at">linewidth =</span> <span class="fl">0.7</span></span>
+<span id="cb27-37"><a href="#cb27-37" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">+</span></span>
+<span id="cb27-38"><a href="#cb27-38" aria-hidden="true" tabindex="-1"></a>    <span class="fu">scale_y_continuous</span>(</span>
+<span id="cb27-39"><a href="#cb27-39" aria-hidden="true" tabindex="-1"></a>        <span class="at">name =</span> <span class="st">"Predicted airfare (USD)"</span>,</span>
+<span id="cb27-40"><a href="#cb27-40" aria-hidden="true" tabindex="-1"></a>        <span class="at">sec.axis =</span> <span class="fu">sec_axis</span>(</span>
+<span id="cb27-41"><a href="#cb27-41" aria-hidden="true" tabindex="-1"></a>            <span class="sc">~</span> . <span class="sc">/</span> oil_scale,</span>
+<span id="cb27-42"><a href="#cb27-42" aria-hidden="true" tabindex="-1"></a>            <span class="at">name =</span> <span class="st">"Oil price (USD per barrel)"</span></span>
+<span id="cb27-43"><a href="#cb27-43" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb27-44"><a href="#cb27-44" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">+</span></span>
+<span id="cb27-45"><a href="#cb27-45" aria-hidden="true" tabindex="-1"></a>    <span class="fu">labs</span>(</span>
+<span id="cb27-46"><a href="#cb27-46" aria-hidden="true" tabindex="-1"></a>        <span class="at">title =</span> <span class="st">"Oil Prices and Predicted Regional Airfare Prices Over Time (From Regression)"</span>,</span>
+<span id="cb27-47"><a href="#cb27-47" aria-hidden="true" tabindex="-1"></a>        <span class="at">x =</span> <span class="st">"Date"</span>,</span>
+<span id="cb27-48"><a href="#cb27-48" aria-hidden="true" tabindex="-1"></a>        <span class="at">color =</span> <span class="st">"Origin region"</span>,</span>
+<span id="cb27-49"><a href="#cb27-49" aria-hidden="true" tabindex="-1"></a>        <span class="at">linetype =</span> <span class="st">"Series"</span></span>
+<span id="cb27-50"><a href="#cb27-50" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">+</span></span>
+<span id="cb27-51"><a href="#cb27-51" aria-hidden="true" tabindex="-1"></a>    <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
+<span id="cb27-52"><a href="#cb27-52" aria-hidden="true" tabindex="-1"></a>    <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">"bottom"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="air-travel-values_files/figure-html/unnamed-chunk-11-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Average ratio-based predicted airfare by origin region and month.</span></span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>ratio_regional_monthly <span class="ot">&lt;-</span> <span class="fu">aggregate</span>(</span>
+<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a>    predicted_fare_ratio_usd <span class="sc">~</span> origin_region <span class="sc">+</span> Date,</span>
+<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">data =</span> airfare_panel,</span>
+<span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">FUN =</span> mean,</span>
+<span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">na.action =</span> na.omit</span>
+<span id="cb28-7"><a href="#cb28-7" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb28-8"><a href="#cb28-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-9"><a href="#cb28-9" aria-hidden="true" tabindex="-1"></a>ratio_regional_monthly <span class="ot">&lt;-</span> ratio_regional_monthly[</span>
+<span id="cb28-10"><a href="#cb28-10" aria-hidden="true" tabindex="-1"></a>    <span class="fu">is.finite</span>(ratio_regional_monthly<span class="sc">$</span>predicted_fare_ratio_usd),</span>
+<span id="cb28-11"><a href="#cb28-11" aria-hidden="true" tabindex="-1"></a>]</span>
+<span id="cb28-12"><a href="#cb28-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-13"><a href="#cb28-13" aria-hidden="true" tabindex="-1"></a>ratio_fare_max <span class="ot">&lt;-</span> <span class="fu">max</span>(</span>
+<span id="cb28-14"><a href="#cb28-14" aria-hidden="true" tabindex="-1"></a>    ratio_regional_monthly<span class="sc">$</span>predicted_fare_ratio_usd,</span>
+<span id="cb28-15"><a href="#cb28-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">na.rm =</span> <span class="cn">TRUE</span></span>
+<span id="cb28-16"><a href="#cb28-16" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb28-17"><a href="#cb28-17" aria-hidden="true" tabindex="-1"></a>ratio_oil_scale <span class="ot">&lt;-</span> ratio_fare_max <span class="sc">/</span> oil_max</span>
+<span id="cb28-18"><a href="#cb28-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-19"><a href="#cb28-19" aria-hidden="true" tabindex="-1"></a><span class="co"># Line graph for the ratio-based prediction with a separate oil-price axis.</span></span>
+<span id="cb28-20"><a href="#cb28-20" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(ratio_regional_monthly, <span class="fu">aes</span>(<span class="at">x =</span> Date)) <span class="sc">+</span></span>
+<span id="cb28-21"><a href="#cb28-21" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_line</span>(</span>
+<span id="cb28-22"><a href="#cb28-22" aria-hidden="true" tabindex="-1"></a>        <span class="fu">aes</span>(<span class="at">y =</span> predicted_fare_ratio_usd, <span class="at">color =</span> origin_region),</span>
+<span id="cb28-23"><a href="#cb28-23" aria-hidden="true" tabindex="-1"></a>        <span class="at">linewidth =</span> <span class="fl">0.8</span></span>
+<span id="cb28-24"><a href="#cb28-24" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">+</span></span>
+<span id="cb28-25"><a href="#cb28-25" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_line</span>(</span>
+<span id="cb28-26"><a href="#cb28-26" aria-hidden="true" tabindex="-1"></a>        <span class="at">data =</span> oil_monthly,</span>
+<span id="cb28-27"><a href="#cb28-27" aria-hidden="true" tabindex="-1"></a>        <span class="fu">aes</span>(<span class="at">y =</span> oil_price <span class="sc">*</span> ratio_oil_scale, <span class="at">linetype =</span> <span class="st">"Oil price"</span>),</span>
+<span id="cb28-28"><a href="#cb28-28" aria-hidden="true" tabindex="-1"></a>        <span class="at">color =</span> <span class="st">"black"</span>,</span>
+<span id="cb28-29"><a href="#cb28-29" aria-hidden="true" tabindex="-1"></a>        <span class="at">linewidth =</span> <span class="fl">0.7</span></span>
+<span id="cb28-30"><a href="#cb28-30" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">+</span></span>
+<span id="cb28-31"><a href="#cb28-31" aria-hidden="true" tabindex="-1"></a>    <span class="fu">scale_y_continuous</span>(</span>
+<span id="cb28-32"><a href="#cb28-32" aria-hidden="true" tabindex="-1"></a>        <span class="at">name =</span> <span class="st">"Ratio-predicted airfare (USD)"</span>,</span>
+<span id="cb28-33"><a href="#cb28-33" aria-hidden="true" tabindex="-1"></a>        <span class="at">sec.axis =</span> <span class="fu">sec_axis</span>(</span>
+<span id="cb28-34"><a href="#cb28-34" aria-hidden="true" tabindex="-1"></a>            <span class="sc">~</span> . <span class="sc">/</span> ratio_oil_scale,</span>
+<span id="cb28-35"><a href="#cb28-35" aria-hidden="true" tabindex="-1"></a>            <span class="at">name =</span> <span class="st">"Oil price (USD per barrel)"</span></span>
+<span id="cb28-36"><a href="#cb28-36" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb28-37"><a href="#cb28-37" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">+</span></span>
+<span id="cb28-38"><a href="#cb28-38" aria-hidden="true" tabindex="-1"></a>    <span class="fu">labs</span>(</span>
+<span id="cb28-39"><a href="#cb28-39" aria-hidden="true" tabindex="-1"></a>        <span class="at">title =</span> <span class="st">"Oil Prices and Ratio-Predicted Regional Airfare Prices Over Time"</span>,</span>
+<span id="cb28-40"><a href="#cb28-40" aria-hidden="true" tabindex="-1"></a>        <span class="at">x =</span> <span class="st">"Date"</span>,</span>
+<span id="cb28-41"><a href="#cb28-41" aria-hidden="true" tabindex="-1"></a>        <span class="at">color =</span> <span class="st">"Origin region"</span>,</span>
+<span id="cb28-42"><a href="#cb28-42" aria-hidden="true" tabindex="-1"></a>        <span class="at">linetype =</span> <span class="st">"Series"</span></span>
+<span id="cb28-43"><a href="#cb28-43" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">+</span></span>
+<span id="cb28-44"><a href="#cb28-44" aria-hidden="true" tabindex="-1"></a>    <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
+<span id="cb28-45"><a href="#cb28-45" aria-hidden="true" tabindex="-1"></a>    <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">"bottom"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="air-travel-values_files/figure-html/unnamed-chunk-12-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="final-2019-estimates-of-region-to-reion-airfare-prices" class="level1">
+<h1>Final 2019 Estimates of Region to Reion Airfare prices</h1>
+<p>For proceedinng, I would suggest using the <code>predicted_fare_ratio_usd</code> values. The regression estimates attempting to include distance I believe has issues given the cross-sectional nature of the data (e.g., note the negative relationship of oil prices and predicted fares).</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Aggregate by origin-to-destination region pairing and year.</span></span>
+<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a>airfare_agg <span class="ot">&lt;-</span> <span class="fu">aggregate</span>(</span>
+<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">cbind</span>(</span>
+<span id="cb29-4"><a href="#cb29-4" aria-hidden="true" tabindex="-1"></a>        average_fare_usd,</span>
+<span id="cb29-5"><a href="#cb29-5" aria-hidden="true" tabindex="-1"></a>        predicted_fare_usd,</span>
+<span id="cb29-6"><a href="#cb29-6" aria-hidden="true" tabindex="-1"></a>        predicted_fare_ratio_usd</span>
+<span id="cb29-7"><a href="#cb29-7" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">~</span> origin_region <span class="sc">+</span> destination_region <span class="sc">+</span> year,</span>
+<span id="cb29-8"><a href="#cb29-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">data =</span> airfare_panel,</span>
+<span id="cb29-9"><a href="#cb29-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">FUN =</span> mean,</span>
+<span id="cb29-10"><a href="#cb29-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">na.rm =</span> <span class="cn">TRUE</span></span>
+<span id="cb29-11"><a href="#cb29-11" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb29-12"><a href="#cb29-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Report summary table for 2019</span></span>
+<span id="cb29-13"><a href="#cb29-13" aria-hidden="true" tabindex="-1"></a>airfare_2019 <span class="ot">&lt;-</span> <span class="fu">subset</span>(airfare_agg, year <span class="sc">==</span> <span class="dv">2019</span>)</span>
+<span id="cb29-14"><a href="#cb29-14" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(airfare_2019)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>     origin_region destination_region year average_fare_usd predicted_fare_usd
+1519        Africa             Africa 2019         734.4200           2024.363
+1520          Asia             Africa 2019         984.3040           2138.460
+1521        Europe             Africa 2019         594.1440           1764.689
+1522 North America             Africa 2019        1346.6080           2846.327
+1523       Oceania             Africa 2019        1769.6000           2870.267
+1524 South America             Africa 2019        2074.4640           2627.656
+1525        Africa               Asia 2019        1034.4800           2435.372
+1526          Asia               Asia 2019         609.9700           1795.665
+1527        Europe               Asia 2019         876.0000           2323.543
+1528 North America               Asia 2019        1216.8880           3098.945
+1529       Oceania               Asia 2019        1118.8080           2407.101
+1530 South America               Asia 2019        2367.3440           3134.147
+1531        Africa             Europe 2019         613.6800           2074.310
+1532          Asia             Europe 2019         877.4800           2336.252
+1533        Europe             Europe 2019         337.5800           1510.349
+1534 North America             Europe 2019        1149.5920           2666.142
+1535       Oceania             Europe 2019        1473.0400           2749.011
+1536 South America             Europe 2019        1576.5840           2542.458
+1537        Africa      North America 2019        1431.9120           2915.306
+1538          Asia      North America 2019        1276.9120           2871.012
+1539        Europe      North America 2019        1146.3600           2425.500
+1540 North America      North America 2019         356.9300           1754.892
+1541       Oceania      North America 2019        1375.9920           2689.748
+1542 South America      North America 2019        1051.2320           1996.149
+1543        Africa            Oceania 2019        1872.5840           2870.267
+1544          Asia            Oceania 2019        1103.7600           2110.190
+1545        Europe            Oceania 2019        1534.3120           2439.390
+1546 North America            Oceania 2019        1414.6240           2620.769
+1547       Oceania            Oceania 2019         802.6100           2050.077
+1548 South America            Oceania 2019        2340.3440           2988.310
+1549        Africa      South America 2019        1931.8640           2627.656
+1550          Asia      South America 2019        2268.2640           2837.235
+1551        Europe      South America 2019        1442.6240           2232.837
+1552 North America      South America 2019         942.9280           1927.170
+1553       Oceania      South America 2019        2280.9440           2988.310
+1554 South America      South America 2019         567.0222           1874.997
+     predicted_fare_ratio_usd
+1519                 454.1490
+1520                 623.6649
+1521                 389.5752
+1522                 832.1713
+1523                1094.2813
+1524                1282.8024
+1525                 639.6994
+1526                 386.4831
+1527                 574.3858
+1528                 752.0074
+1529                 691.8460
+1530                1463.9129
+1531                 379.4861
+1532                 555.9802
+1533                 221.3484
+1534                 710.4201
+1535                 910.8952
+1536                 974.9245
+1537                 885.4625
+1538                 809.0643
+1539                 751.6586
+1540                 220.5741
+1541                 850.8829
+1542                 650.0585
+1543                1157.9643
+1544                 699.3534
+1545                1006.0355
+1546                 874.2035
+1547                 496.3162
+1548                1447.2167
+1549                1194.6217
+1550                1437.1949
+1551                 945.9164
+1552                 582.7068
+1553                1410.4851
+1554                 350.6339</code></pre>
+</div>
+</div>
+</section>
+<section id="air-travel-data-sources" class="level1">
+<h1>Air Travel Data Sources</h1>
+<p>These are data sources that Spencer provided to assist in this exercise.</p>
+<ul>
+<li>https://www.kaggle.com/datasets/dilwong/flightprices
+<ul>
+<li>Worth downloading and exploring.</li>
+<li>Potentially useful to supplement the constructed data set.</li>
+<li>ISSUE: This is for only domestic airports. So no better than the OD 94 data by Buerea of Transportation.
+<ul>
+<li>to/from the following airports: ATL, DFW, DEN, ORD, LAX, CLT, MIA, JFK, EWR, SFO, DTW, BOS, PHL, LGA, IAD, OAK.</li>
+</ul></li>
+</ul></li>
+<li>https://www.reddit.com/r/datasets/comments/efnj6t/where_can_i_find_historical_flight_price_datasets/
+<ul>
+<li>Some good suggestions. Did not find a smoking gun data set to use.</li>
+</ul></li>
+<li>https://www.oag.com/altus-data
+<ul>
+<li>NOTE: Seems like we could try their free data trial.</li>
+</ul></li>
+<li>https://www.trade.gov/us-international-air-travel-statistics-i-92-data
+<ul>
+<li>NOTE: This does not appear to have price data. Only aggregate arrivals and departures.</li>
+</ul></li>
+</ul>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const onCopySuccess = function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  }
+  const getTextToCopy = function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+    text: getTextToCopy
+  });
+  clipboard.on('success', onCopySuccess);
+  if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+    const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+      text: getTextToCopy,
+      container: window.document.getElementById('quarto-embedded-source-code-modal')
+    });
+    clipboardModal.on('success', onCopySuccess);
+  }
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+    var mailtoRegex = new RegExp(/^mailto:/);
+      var filterRegex = new RegExp('/' + window.location.host + '/');
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+        // undo the damage that might have been done by quarto-nav.js in the case of
+        // links that we want to consider external
+        if (link.dataset.originalHref !== undefined) {
+          link.href = link.dataset.originalHref;
+        }
+      }
+    }
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+    const config = {
+      allowHTML: true,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start',
+    };
+    if (contentFn) {
+      config.content = contentFn;
+    }
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      if (note) {
+        return note.innerHTML;
+      } else {
+        return "";
+      }
+    });
+  }
+  const xrefs = window.document.querySelectorAll('a.quarto-xref');
+  const processXRef = (id, note) => {
+    // Strip column container classes
+    const stripColumnClz = (el) => {
+      el.classList.remove("page-full", "page-columns");
+      if (el.children) {
+        for (const child of el.children) {
+          stripColumnClz(child);
+        }
+      }
+    }
+    stripColumnClz(note)
+    if (id === null || id.startsWith('sec-')) {
+      // Special case sections, only their first couple elements
+      const container = document.createElement("div");
+      if (note.children && note.children.length > 2) {
+        container.appendChild(note.children[0].cloneNode(true));
+        for (let i = 1; i < note.children.length; i++) {
+          const child = note.children[i];
+          if (child.tagName === "P" && child.innerText === "") {
+            continue;
+          } else {
+            container.appendChild(child.cloneNode(true));
+            break;
+          }
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(container);
+        }
+        return container.innerHTML
+      } else {
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        return note.innerHTML;
+      }
+    } else {
+      // Remove any anchor links if they are present
+      const anchorLink = note.querySelector('a.anchorjs-link');
+      if (anchorLink) {
+        anchorLink.remove();
+      }
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(note);
+      }
+      if (note.classList.contains("callout")) {
+        return note.outerHTML;
+      } else {
+        return note.innerHTML;
+      }
+    }
+  }
+  for (var i=0; i<xrefs.length; i++) {
+    const xref = xrefs[i];
+    tippyHover(xref, undefined, function(instance) {
+      instance.disable();
+      let url = xref.getAttribute('href');
+      let hash = undefined; 
+      if (url.startsWith('#')) {
+        hash = url;
+      } else {
+        try { hash = new URL(url).hash; } catch {}
+      }
+      if (hash) {
+        const id = hash.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note !== null) {
+          try {
+            const html = processXRef(id, note.cloneNode(true));
+            instance.setContent(html);
+          } finally {
+            instance.enable();
+            instance.show();
+          }
+        } else {
+          // See if we can fetch this
+          fetch(url.split('#')[0])
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.getElementById(id);
+            if (note !== null) {
+              const html = processXRef(id, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      } else {
+        // See if we can fetch a full url (with no hash to target)
+        // This is a special case and we should probably do some content thinning / targeting
+        fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(html, "text/html");
+          const note = htmlDoc.querySelector('main.content');
+          if (note !== null) {
+            // This should only happen for chapter cross references
+            // (since there is no id in the URL)
+            // remove the first header
+            if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+              note.children[0].remove();
+            }
+            const html = processXRef(null, note);
+            instance.setContent(html);
+          } 
+        }).finally(() => {
+          instance.enable();
+          instance.show();
+        });
+      }
+    }, function(instance) {
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            div.style.left = 0;
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+        // Handle positioning of the toggle
+    window.addEventListener(
+      "resize",
+      throttle(() => {
+        elRect = undefined;
+        if (selectedAnnoteEl) {
+          selectCodeLines(selectedAnnoteEl);
+        }
+      }, 10)
+    );
+    function throttle(fn, ms) {
+    let throttle = false;
+    let timer;
+      return (...args) => {
+        if(!throttle) { // first call gets through
+            fn.apply(this, args);
+            throttle = true;
+        } else { // all the others get throttled
+            if(timer) clearTimeout(timer); // cancel #2
+            timer = setTimeout(() => {
+              fn.apply(this, args);
+              timer = throttle = false;
+            }, ms);
+        }
+      };
+    }
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
