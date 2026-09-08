@@ -1,0 +1,5 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+recreation_tasks *.py
+.DS_Store
+archived/*
