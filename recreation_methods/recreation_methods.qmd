@@ -56,9 +56,10 @@ author:
 
 Recreation ecosystem services encompass the benefits people derive from engaging with natural environments for leisure, exercise, and tourism activities. We distinguish between two types of nature-based recreation: **Recreation from Home** represents visits to natural areas by local residents traveling from their homes, while **Recreation from Lodging** captures visits by tourists staying at accommodation facilities. Both forms of recreation depend critically on the quality and accessibility of natural ecosystems, generating substantial economic and social value through improved physical and mental health, cultural connections to nature, and tourism-related economic activity.
 
-The valuation approach recognizes that high-quality natural environments, including forests, grasslands, protected areas, and water bodies, in combination with appropriate accessibility infrastructure create opportunities for meaningful human-nature interactions. These recreation opportunities generate measurable economic value through the time and travel costs people willingly incur to visit natural areas, reflecting their preferences for ecosystem-based recreation experiences.
+The valuation approach recognizes that high-quality natural environments, including forests, grasslands, protected areas, and water bodies, in combination with appropriate accessibility infrastructure create opportunities for meaningful human-nature interactions. These recreation opportunities generate measurable economic value through the travel costs people incur to visit natural areas, reflecting revealed demand for ecosystem-based recreation experiences.
 
 Within the SEEA EA framework, this service corresponds to the final non-material recreation-related ecosystem services. It captures the direct contributions of ecosystems that enable individuals to experience, enjoy, and benefit from their natural surroundings. These benefits are realized through activities such as walking, wildlife observation, and nature-based tourism, in which ecosystems provide the setting and biophysical qualities essential for the experience itself. As a final ecosystem service, recreation represents the end point of ecosystem contributions before human use or enjoyment, linking ecological conditions directly to cultural, social, and economic well-being.
+
 > "Recreation-related services are contributions of ecosystems, in particular through their biophysical characteristics and qualities, that enable people to use and enjoy the environment through direct, in situ, physical and experiential interactions with the environment. These include services both to locals and to non-locals (i.e. visitors, including tourists). Recreation-related services may also be supplied to those engaging in recreational fishing or hunting. These are final ecosystem services."
 [@un2021seea]
 
@@ -66,9 +67,94 @@ Within the SEEA EA framework, this service corresponds to the final non-material
 
 ## Overview
 
-The recreation valuation framework consists of three main steps, shown in @fig-overview. First, we map high-quality recreation areas using geospatial suitability analysis that combines environmental attractiveness with accessibility factors. Second, we apply a zonal travel cost method to estimate visit frequencies to these areas from both residents (recreation from home) and visitors (recreation from lodging). Finally, we calculate economic values using distance-based travel costs as a proxy for willingness to pay. The approach is builds on the European Commission's Integrated Natural Capital Accounting (INCA) framework [@Zulian2024].
+The recreation valuation framework consists of four main steps, shown in @fig-overview. First, we map high-quality recreation areas using geospatial suitability analysis that combines environmental attractiveness with accessibility factors, and dissolve contiguous high-quality pixels into discrete recreation sites. Second, we allocate each population pixel's expected annual trips across reachable sites using a distance-banded demand model, in which allocation shares are conserved so that a population pixel near several nearby sites does not generate more total trips than an otherwise-identical pixel near a single site. Trip demand that cannot be allocated to any reachable site is tracked explicitly as unmet demand rather than discarded. Third, realized visits are priced using each traveler's round-trip travel cost, calculated as a capital-account (price times quantity) measure rather than a consumer-surplus estimate. Finally, site-level results are aggregated to countries. The approach builds on the European Commission's Integrated Natural Capital Accounting (INCA) framework [@Zulian2024] and on scaling-law approaches to human mobility [@Hooftman2023110779].
 
-![Workflow Overview](assets/gep_rec_overview.drawio.png){#fig-overview}
+::: {#fig-overview}
+
+```{mermaid}
+flowchart LR
+
+    %% ─────────────────────────────
+    %% STEP 1
+    %% ─────────────────────────────
+    subgraph S1["01  RECREATION OPPORTUNITY"]
+        direction TB
+
+        LULC["Land Cover<br/>+ Protected Areas"] --> ENV["Environmental<br/>Index"]
+        ROADS["Road Density<br/>+ Urban Share"] --> ACC["Accessibility<br/>Index"]
+
+        ENV --> RANK["Site Ranking"]
+        ACC --> RANK
+
+        RANK --> HQ["High-Quality<br/>Sites"]
+        HQ --> DISS["Dissolved<br/>Sites"]
+    end
+
+    %% ─────────────────────────────
+    %% STEP 2
+    %% ─────────────────────────────
+    subgraph S2["02  DEMAND ALLOCATION"]
+        direction TB
+
+        POP["Resident<br/>Population"]
+        OVN["Overnight<br/>Stays"]
+        PARAMS["Calibrated<br/>Parameters"]
+
+        POP --> ALLOC["Distance-Banded<br/>Allocation"]
+        OVN --> ALLOC
+        PARAMS --> ALLOC
+        DISS --> ALLOC
+
+        ALLOC --> VISITS["Realized<br/>Visits"]
+        ALLOC --> UNMET["Unmet<br/>Demand"]
+    end
+
+    %% ─────────────────────────────
+    %% STEP 3
+    %% ─────────────────────────────
+    subgraph S3["03  ECONOMIC VALUATION"]
+        direction TB
+
+        VISITS --> PRICE["Visits ×<br/>Net Price"]
+        FUEL["Country<br/>Fuel Cost"] --> PRICE
+        PRICE --> VALUE["Site-Level<br/>Value"]
+    end
+
+    %% ─────────────────────────────
+    %% STEP 4
+    %% ─────────────────────────────
+    subgraph S4["04  AGGREGATION"]
+        direction TB
+
+        VALUE --> COUNTRY["Country-Level<br/>Results"]
+        VISITS --> COUNTRY
+        UNMET --> COUNTRY
+    end
+
+    %% ─────────────────────────────
+    %% STYLING
+    %% ─────────────────────────────
+
+    classDef input fill:#f7f7f7,stroke:#777,stroke-width:1px,color:#222;
+    classDef process fill:#ffffff,stroke:#660033,stroke-width:2px,color:#222;
+    classDef output fill:#660033,stroke:#660033,stroke-width:2px,color:#ffffff;
+    classDef intermediate fill:#f0e6eb,stroke:#660033,stroke-width:1.5px,color:#222;
+
+    class LULC,ROADS,POP,OVN,PARAMS,FUEL input;
+    class ENV,ACC,RANK,ALLOC,PRICE process;
+    class HQ,DISS,VISITS,UNMET,VALUE intermediate;
+    class COUNTRY output;
+
+    style S1 fill:#faf7f8,stroke:#660033,stroke-width:2px
+    style S2 fill:#faf7f8,stroke:#660033,stroke-width:2px
+    style S3 fill:#faf7f8,stroke:#660033,stroke-width:2px
+    style S4 fill:#faf7f8,stroke:#660033,stroke-width:2px
+
+    linkStyle default stroke:#777,stroke-width:1.5px
+```
+
+Workflow Overview
+:::
 
 ## Estimating Recreation Opportunity
 
@@ -137,32 +223,88 @@ We combine environmental and accessibility indices using a matrix approach to cr
 
 Areas scoring 9 in the ranking are identified as high-quality recreation sites, representing locations that combine high natural value with appropriate accessibility for recreation activities.
 
-## Recreation from Home Analysis
+### Site Dissolution
 
-### Visit Estimation (Zonal Travel Cost Model)
+Individual high-quality pixels rarely correspond to a single, independent recreation destination; a large natural area (e.g., a national park) typically spans many contiguous 1km pixels. Treating each pixel as an independent destination would overstate visitation to large sites, since a population pixel near a large contiguous area would have many "destinations" available at effectively the same distance. We therefore dissolve contiguous high-quality pixels (8-connected) into discrete sites prior to demand allocation, so that a single large natural area is treated as one destination regardless of how many 1km pixels it spans.
 
-Recreation from home visits are estimated using a zonal travel cost approach where visit frequency decreases with travel distance to high-quality recreation areas. The model uses gridded population data (Worldpop) [@WorldPopUnconstrainedGlobalMosaics2000_2020] and applies distance-decay functions calibrated from the UK's Monitor of Engagement with the Natural Environment (MENE) study and used in the INCA method [@NaturalEngland2016MENE].
+## Demand Allocation
 
-$$N = \sum_{i=1}^4 \frac{(1+k_i)}{(k_i + e^{-\alpha_i \times \text{Pop}_i})}$$
+### Distance-Banded Conserved Allocation Model
 
-where $N$ represents the number of weekly visits flowing into a high-quality recreation site, measured in 1km grid cells. To get annual estimates, the result is multiplied by 52.
+Recreation from home visits are estimated using a distance-banded demand model in which each population pixel's expected annual trips are allocated across reachable recreation sites, conserving the total number of trips regardless of how many sites are nearby. 
+<!-- This replaces an earlier gravity-style mobility function calibrated on UK survey data [@NaturalEngland2016MENE], which combined a small number of fixed 1km distance bands with population-dependent logistic terms; that formulation did not scale to global 1km population data, where per-pixel populations are far smaller than the ward-level populations the formula was calibrated on, and it did not extend naturally to heterogeneous, non-UK travel behavior. -->
 
-| Distance Band | $k_i$ | $\alpha_i$ |
-|---------------|-------|------------|
-| Distance 1 (<1 km) | 0.0132 | 0.00155 |
-| Distance 2 (1–2 km) | 0.0267 | 0.00115 |
-| Distance 3 (2–3 km) | 0.0518 | 0.00098 |
-| Distance 4 (3–4 km) | 0.1067 | 0.00067 |
+For each parameter group $g$ (see @sec-parameters), demand follows a two-parameter exponential distance-decay density:
 
-: Mobility Function Parameters {#tbl-mobility}
+$$
+f(d) = b_g \cdot e^{-b_g d}
+$$
 
-### Economic Valuation
+where $d$ is distance in kilometers and $b_g$ is the group's fitted distance-decay rate. This is a normalized probability density ($\int_0^\infty f(d)\, dd = 1$), so it fully describes the *shape* of how trips are distributed across distance, independent of the *overall level* of demand, which is governed separately by a participation parameter $a_g$ (expected annual trips per capita at zero travel distance).
 
-The economic value of recreation from home is estimated using the travel cost method, where the cost of traveling to recreation sites serves as a proxy for willingness to pay. Values are calculated as:
+**Fixed maximum travel distance.** All parameter groups share a single maximum travel distance, $d^{\text{cutoff}} = 50$ km, applied uniformly worldwide. We chose a fixed cutoff, rather than deriving it from each group's own decay rate $b_g$ (e.g., as a multiple of the typical trip distance $1/b_g$), because a distance-decay-derived cutoff has no necessary relationship to how far someone would plausibly travel and return the same day: $b_g$ shapes the *spatial split* of demand across nearby sites, but should not also be trusted to say where day-trip demand physically stops. Fifty kilometers is consistent with the farthest travel distances reported in the trip-frequency survey data used to calibrate $a_g$ and $b_g$ (see @sec-parameters): the largest reported distance bin averages roughly 46 km across the three surveys used.
 
-$$\text{Annual Value} = \text{Annual Visits} \times c_i \times \text{Travel Cost per Visit}$$
+**Distance bands.** Each group's cutoff distance is divided into $n_g$ non-overlapping distance bands (rings), bounded below by one pixel width so that no band is narrower than the underlying 1km raster grid can resolve:
 
-The travel cost $c_i$ is based on average fuel costs per kilometer, assumed to be equal within a country [@GlobalPetrolPrices2025; @IEA2020FuelPrices; @IEA2021GFEI]. This assumes that the mode of transportation comes through ground transportation using motor vehicles. We estimate the value of these visits based on the travel cost incurred by visits to high-quality recreation areas.
+$$
+\text{share}_k = F(d_k) - F(d_{k-1})
+$$
+
+For population pixel $i$ with population $\text{Pop}_i$, the fixed budget allocated to band $k$ is $\text{Pop}_i \cdot a_g \cdot \text{share}_k$. This is a property of distance alone, independent of how many recreation sites actually fall within that band, which is the key conservation mechanism: whether zero, one, or several sites fall within a given band, that band's total allocated demand does not change. If one or more sites are present in the band, the fixed budget is split evenly across them. If no site is present in the band, that portion of the pixel's trip budget is recorded as **unmet demand**, rather than reallocated to other bands.
+
+Trip budget beyond the group's cutoff distance, $1 - F(d^{\text{cutoff}}_g)$, is treated as unmet demand unconditionally.
+
+Formally, for population pixel $i$ in group $g$, with $\mathcal{S}_k(i)$ the set of sites within band $k$ of pixel $i$:
+
+$$
+\text{visits}_{i \to j} =
+\begin{cases}
+\text{Pop}_i \cdot a_g \cdot \text{share}_k \, / \, |\mathcal{S}_k(i)| & j \in \mathcal{S}_k(i),\ |\mathcal{S}_k(i)| > 0 \\
+0 & \text{otherwise}
+\end{cases}
+$$
+
+$$
+\text{unmet}_i = \text{Pop}_i \cdot a_g \cdot \left[\sum_{k:\, |\mathcal{S}_k(i)|=0} \text{share}_k \; + \; \big(1 - F(d^{\text{cutoff}}_g)\big)\right]
+$$
+
+By construction, $\sum_j \text{visits}_{i \to j} + \text{unmet}_i = \text{Pop}_i \cdot a_g$ for every population pixel; total demand is exactly conserved.
+
+### Parameter Groups {#sec-parameters}
+
+Participation ($a_g$) and distance-decay ($b_g$) parameters are assigned via a country-to-parameter-group mapping, allowing calibration at country, regional, or archetype resolution depending on data availability, without changing the underlying allocation model. Every country sharing a parameter group must share identical $(a_g, b_g)$ values.
+
+| Column | Description |
+|--------|-------------|
+| `iso3_r250_id` | Country identifier |
+| `param_group` | Parameter group assignment (arbitrary integer key; multiple countries may share a group) |
+| `participation_param` | $a_g$, expected annual trips per capita at zero travel distance |
+| `distance_param` | $b_g$, exponential distance-decay rate (per km) |
+
+: Demand Parameter Table Schema {#tbl-parameters}
+
+**Calibration.** We reviewed publicly available trip-frequency and trip-distance survey data across countries and identified two data requirements for a usable study: (1) the trip-frequency distribution must include a "zero visits" bin, so that a true population-wide per-capita rate can be computed rather than a rate conditional on already being a visitor; and (2) the study must separately report a distribution of travel distances among visitors, needed to fit $b_g$. Of the candidate studies reviewed, three satisfied both requirements: the People and Nature Survey for England [@PaNSEngland], a web-based survey of urban nature visitation in Tel Aviv-Yafo, Israel [@TalalGruntman2023], and a park-visitor survey in Beijing, China [@Tu2020126689]. For each study, $a_g$ is the weighted mean annual visits per capita, including the zero-visit bin, and $b_g$ is the inverse of the weighted mean travel distance among visitors (the maximum-likelihood rate parameter for an exponential fit to the binned distance data); distances reported in miles are converted to kilometers before fitting. The three studies' $(a_g, b_g)$ pairs are combined by simple (unweighted) mean, so that a study with an unusually large sample (e.g., 143,558 respondents in England, versus 421 in Israel and 7,326 in China) does not dominate purely because it happened to survey more people. This gives:
+
+| Parameter | Value |
+|-----------|-------|
+| $a$ (participation) | 102.50 visits/capita/year |
+| $b$ (distance decay) | 0.167 /km (implied mean trip distance $\approx$ 6.0 km) |
+
+: Calibrated Global Demand Parameters {#tbl-calibrated-params}
+
+This single $(a, b)$ pair is currently applied to every country as one parameter group (`param_group = 1` for all 250 countries in the correspondence table), rather than varying by country or region; see @sec-improvement for the data limitation this reflects. A fourth candidate study, a U.S. survey asking specifically about visits to *other wildlife refuges* [@FWSNVS], satisfies the zero-visit-bin requirement but not the paired-distance requirement, and its much lower implied rate ($a \approx 4.1$ visits/capita/year) reflects a narrower site definition (a specific refuge type, rather than "any park or green space" as asked by the three studies used above) rather than a genuinely lower baseline demand; it is reported here as a caveat and was not included in the calibration.
+
+## Economic Valuation
+
+Realized visits are valued on a capital-account (price times quantity) basis, rather than as consumer surplus under a demand curve. For visits allocated within band $k$ (bounded by $d_{k-1}, d_k$, midpoint $\bar{d}_k$), value is:
+
+$$
+\text{value}_{i \to j} = \text{visits}_{i \to j} \times c_i \times 2\bar{d}_k
+$$
+
+where $c_i$ is the fuel cost per kilometer in traveler $i$'s origin country [@GlobalPetrolPrices2025; @IEA2020FuelPrices; @IEA2021GFEI], and the factor of 2 reflects a round trip. Because within-band allocation is split evenly across sites present in a band rather than weighted by each site's exact distance, value is priced at the band midpoint rather than at each site's individual distance. This is consistent with the fixed, distance-alone basis on which band shares are computed. This assumes ground transportation using motor vehicles is the relevant travel mode, and captures only the value represented by realized local travel costs, not broader economic activity or willingness-to-pay beyond observed travel expenditure.
+
+Fuel cost data are unavailable for 81 of 250 countries. For these countries, visits are still computed normally, since visit counts do not depend on cost, but value is reported as missing (rather than a spurious zero, which would otherwise read as "travel is free there") in the final country-level results.
 
 ## Recreation from Lodging Analysis
 
@@ -175,13 +317,11 @@ Recreation from lodging demand is modeled by spatially allocating national overn
 
 This generates country-level overnight stays distributed proportionally to hotel density.
 
-### Visits Estimation (Zonal Travel Cost)
+UNWTO reporting of the "Overnights" indicator is inconsistent across countries and years: a country may report for some years but not others, or may report other tourism indicators (e.g., Arrivals) without ever reporting Overnights. Rather than restricting every country to a single target year (2019) and treating any country without that exact year as having zero tourist demand, we use each country's nearest available reporting year to 2019 (e.g., 2018 or 2021 if 2019 itself is missing). This recovers usable data for many countries that would otherwise be dropped entirely, including some major tourism destinations (e.g., New Zealand, Thailand, the Philippines, Colombia) that do not report for 2019 specifically. Countries with no Overnights data in *any* year (e.g., Indonesia, which reports Arrivals but not Overnights) still cannot be assigned a value, and their lodging-based visits and value are reported as missing rather than zero in the final country-level results.
 
-Recreation from lodging visits to high-quality recreation sites are estimated using the same zonal travel cost framework as recreation from home, but with overnight stay data as the population proxy instead of residential population. This approach assumes that visitors at lodging facilities visit recreation sites based on their accommodation location, with visit probability decreasing with distance.
+### Visits Estimation and Economic Valuation
 
-### Economic Valuation
-
-We estimate the economic value using the same zonal travel cost framework as recreation from home, but with overnight stay data as the population proxy instead of residential population. These estimates capture only the value represented by local travel costs and do not capture international travel or other expenditures that may be related to nature-based tourism.
+Recreation from lodging visits are estimated using the same distance-banded conserved allocation framework described above, with overnight stay data used as the population proxy in place of residential population. Visits and value are calculated identically, with the fuel cost applied at each visitor's lodging-location country rather than a residential origin. These estimates capture only the value represented by local travel costs and do not capture international travel or other expenditures that may be related to nature-based tourism.
 
 ## Variables and Datasets
 
@@ -194,23 +334,40 @@ We estimate the economic value using the same zonal travel cost framework as rec
 | Tourism Statistics | Annual Overnight Stays | [@UNWTO2023] | Country-level |
 | Accommodation Points | Delta Check Hotel Database | [@DeltaCheck2023] | Point locations |
 | Fuel Costs | Country Fuel Price Data | [@GlobalPetrolPrices2025; @IEA2020FuelPrices; @IEA2021GFEI] | Country-level |
+| Demand Parameters | Participation and distance-decay parameters by group | [@PaNSEngland; @TalalGruntman2023; @Tu2020126689] | Single global group (all countries) |
 
 : Key Variables and Datasets {#tbl-datasets}
 
 # Validation
 
-[Validation in progress]
+We compared Recreation from Home results against the European Commission Joint Research Centre's (JRC) Integrated Natural Capital and Ecosystem Services Accounting (INCA) outdoor recreation account [@Vallecillo2019196], the EU-wide implementation of the ESTIMAP model this framework builds on. The JRC account reports 2012 country-level "potential visits" to high-quality recreation areas for 28 European countries, at the Local Administrative Unit (LAU) level.
 
-# Areas for Improvement
+**Spatial pattern.** Across the 28 countries, the Spearman rank correlation between our `home_visits` and the JRC account's potential visits is 0.96 ($p < 0.001$): Germany, France, the United Kingdom, Italy, and Poland rank highest in both datasets, and Malta, Cyprus, Estonia, and Luxembourg rank lowest in both. This indicates that the underlying spatial mechanics of the model (population density combined with proximity to high-quality sites) reproduce the same country-level ranking as JRC's independently-built account.
+
+**Absolute scale.** Our visit counts are, on average, about 600 times larger than JRC's for the same countries (the ratio is fairly consistent across countries, mostly between 330x and 1080x, rather than varying by orders of magnitude). This gap is attributable almost entirely to two deliberate scope differences rather than to a modeling error:
+
+1. **Maximum travel distance.** The JRC account is explicitly restricted to walking- and cycling-distance recreation, capped at 4 km, and deliberately excludes any visit requiring motor transport, treating longer-distance travel as overlapping with tourism instead. Our account uses a 50 km cutoff and prices visits using car fuel cost (see @sec-parameters and Economic Valuation above), so it captures a substantially larger day-trip catchment area around each site.
+2. **Participation rate.** JRC's visit-generating function is a log-logistic mobility function calibrated to a single narrow indicator (the English MENE survey), integrating to an EU-wide average of roughly 0.09 visits per person per year. Our participation parameter ($a = 102.5$ visits/capita/year at zero distance; @sec-parameters) is calibrated from general "any park or green space" survey questions, which capture a much broader and more frequent recreation behavior.
+
+**Value per visit.** Per-visit value shows the opposite pattern: JRC's implied value is about EUR 1,256 per visit, versus about USD 142 per visit in our account, so our value per visit is roughly 9 times *lower*, despite our trips traveling farther. This is because JRC's "zonal travel cost method" fits a regression-based "trip generation function" against travel cost, a form of demand-curve valuation similar to consumer surplus. Our valuation (@sec-parameters, Economic Valuation above) is a direct capital-account measure, realized round-trip fuel expenditure, price times quantity. This is a conservative floor on value rather than a full willingness-to-pay estimate. Because the visit-count gap (~600x) and the value-per-visit gap (~1/9) move in opposite directions, the gap in total monetary value across the 28 countries is smaller than either factor alone, at roughly 67x.
+
+Taken together, the strong rank correlation together with a consistent (rather than erratic) scale gap, fully explained by documented scope and valuation-method differences, supports the model's spatial mechanics while indicating that our results describe a substantially broader definition of "daily recreation" (car-inclusive, higher-frequency, direct-cost-valued) than JRC's INCA account (walking/cycling-only, lower-frequency, demand-curve-valued). Neither framing is more "correct" than the other; they answer different questions, and this comparison should be read as validating internal consistency rather than as evidence that either produces the "true" number of visits.
+
+# Areas for Improvement {#sec-improvement}
 
 ## Estimating Recreation Opportunity
 
-The categories used for identifying areas for recreation potential, including the environmental inde and accessibility index, need additional validation from the literature. 
+The categories used for identifying areas for recreation potential, including the environmental index and accessibility index, need additional validation from the literature.
 
-## Zonal Travel Cost Model
+## Demand Parameter Calibration
 
-The zonal travel cost method relies heavily on the values for $k_i$ and $\alpha_i$, sourced from he UK’s Monitor of Engagement with the Natural Environment (MENE) [@NaturalEngland2016MENE]. The assumption implies that recreation preferences are consistent across the globe, for both residents and visitors, which is unlikely. The recreation team is researching ways to improve this measure. Specifically, the approach may be to rely on one of the scaling laws of human mobility to handle global values for $k_i$ and $\alpha_i$ [@Hooftman2023110779].
+The distance-banded allocation model resolves several structural issues in the original zonal travel cost formulation. It no longer relies on fixed 1km distance bands or population-dependent logistic terms calibrated on UK ward-level populations, and it explicitly conserves total demand rather than allowing nearby sites to independently draw full demand. The model's participation ($a_g$) and distance-decay ($b_g$) parameters are now calibrated against real survey data (@sec-parameters) rather than placeholder values, but the calibration remains a single global parameter group rather than country- or region-specific: only three studies met both data requirements (a zero-visit-inclusive participation distribution and a paired travel-distance distribution), covering England, Israel, and China, and their $(a, b)$ values are averaged into one worldwide pair rather than mapped to individual countries. Expanding country- or region-specific coverage, so that countries can be assigned to distinct parameter groups where survey data supports it, remains the primary outstanding methodological task; the underlying country-to-parameter-group mapping already supports this without further changes to the allocation model itself. Scaling laws of human mobility [@Hooftman2023110779] are one candidate approach for deriving globally consistent distance-decay behavior where country-specific survey data is unavailable.
 
+The current model also assumes participation is driven purely by distance decay from a population-representative baseline, rather than by proximity to a single nearest site; this assumption should be revisited if calibration data suggests trip frequency depends more on a traveler's *best* available option than on distance-decayed access to sites in general.
+
+**Note on distinction from calibration data.** The pipeline itself generates, for every population pixel and every reachable site, a simulated (distance, cost, visits) triple. This large simulated dataset cannot be used to estimate or refine a demand curve directly, even though it has genuine geographic variation in distance and cost. The "visits" value in every one of those triples is not an independently observed behavioral outcome, but a deterministic function of distance built from the same $a_g$ and $b_g$ already estimated from the three surveys (@sec-parameters). Regressing simulated visits against simulated cost would, up to discretization noise from the distance bands, simply recover the $b_g$ used to generate the data. It cannot reveal anything about the true shape of demand that was not already assumed when the data were generated. 
+
+What is missing is not distance or cost variation, both of which are genuine here (real geography, real fuel prices), but an *independently observed* visitation outcome to pair with them, at more than a single national mean per study. The three surveys used for calibration (@sec-parameters) only provide national marginal distributions: one distance histogram and one frequency histogram per country, not linked to each other or to any finer geography. Zonal level microdata, could in principle support a genuine zone-level regression of the kind JRC's MENE-based calibration used [@Vallecillo2019196]. Aggregated mobile-location visitation data (of the kind sold commercially by providers such as SafeGraph, Veraset, or Placer.ai, or Google's Popular Times/Places data) is sometimes proposed as a global-scale alternative, but is not presently a viable substitute: commercial panels of this kind are licensed at substantial cost and are concentrated in the United States and a small number of wealthy markets rather than covering the 250 countries this model targets, while freely available aggregated mobility products (e.g., Meta's Data for Good movement maps) report only coarse admin-region-to-region flows, not visitation linked to a specific site's distance. Country- or region-specific expansion of the parameter table therefore remains gated on finding genuinely independent, geographically-resolved visitation data, not on further processing of data already in hand.
 
 # Results
 
