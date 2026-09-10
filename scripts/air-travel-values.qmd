@@ -27,6 +27,8 @@ Some of the regions are not limited on this list. So I supplement using:
 - Africa: https://en.wikipedia.org/wiki/List_of_the_busiest_airports_in_Africa
 - South America: https://en.wikipedia.org/wiki/List_of_the_busiest_airports_in_South_America
 - Oceania: https://en.wikipedia.org/wiki/List_of_the_busiest_airports_in_Oceania
+- Middle East: https://en.wikipedia.org/wiki/List_of_the_busiest_airports_in_the_Middle_East
+- Southeast Asia: https://en.wikipedia.org/wiki/List_of_the_busiest_airports_in_Southeast_Asia
 The aim of the exercise is to get a range (IQR) for air travel prices by region/contient. 
 So, I take the top five hubs for the following regions: 
 - North America
@@ -43,49 +45,81 @@ So this data wil be averaged across flights for O-D pairs, then aggregated by O-
 rm(list = ls())
 
 # List the regional hubs for each continent
-hubs_NA <- c("Hartsfield–Jackson Atlanta International Airport", 
-    "Dallas Fort Worth International Airport", 
-    "O'Hare International Airport", 
-    "Denver International Airport", 
-    "Los Angeles International Airport")
-hubs_EU <- c("Heathrow Airport", 
-    "Istanbul Airport", 
-    "Charles de Gaulle Airport", 
-    "Amsterdam Airport Schiphol", 
-    "Adolfo Suárez Madrid–Barajas Airport")
-hubs_AS <- c("Dubai International Airport", 
-    "Tokyo Haneda Airport", 
-    "Shanghai Pudong International Airport", 
-    "Guangzhou Baiyun International Airport", 
-    "Indira Gandhi International Airport")
-hubs_SA <- c("El Dorado International Airport", 
-    "São Paulo–Guarulhos International Airport", 
-    "Jorge Chávez International Airport", 
-    "Arturo Merino Benítez International Airport", 
-    "São Paulo–Congonhas Airport")
+    # Updated regions to match the UNWTO regional classifications
+        # (Africa, Americas, East Asia and the Pacific, Europe, Middle East, South Asia, Other)
+# Africa
 hubs_AF <- c("Cairo International Airport", 
     "OR Tambo International Airport", 
     "Bole International Airport", 
     "Mohammed V International Airport", 
     "Hurghada International Airport")
-hubs_OC <- c("Sydney Airport",
-    "Melbourne Airport", 
-    "Brisbane Airport", 
+# Americas
+hubs_NA <- c("Hartsfield–Jackson Atlanta International Airport", 
+    "Dallas Fort Worth International Airport", 
+    "O'Hare International Airport", 
+    "Denver International Airport", 
+    "Los Angeles International Airport")
+# East Asia and Pacific
+hubs_AS <- c("Beijing Capital International Airport", 
+    "Tokyo Haneda Airport", 
+    "Shanghai Pudong International Airport", 
+    "Guangzhou Baiyun International Airport", 
+    "Sydney Airport")
+# Europe
+hubs_EU <- c("Heathrow Airport", 
+    "Istanbul Airport", 
+    "Charles de Gaulle Airport", 
+    "Amsterdam Airport Schiphol", 
+    "Adolfo Suárez Madrid–Barajas Airport")
+# Middle East 
+hubs_ME <- c("Dubai International Airport", 
+    "Hamad International Airport",
+    "King Abdulaziz International Airport",
+    "Istanbul Sabiha Gökçen International Airport",
+    "King Khalid International Airport")
+# South Asia
+hubs_SA <- c("Indira Gandhi International Airport", 
+    "Singapore Changi Airport", 
+    "Suvarnabhumi Airport", 
+    "Soekarno–Hatta International Airport",
+    "Kuala Lumpur International Airport")
+# Other 
+hubs_OT <- c("El Dorado International Airport", 
+    "São Paulo–Guarulhos International Airport", 
+    "Jorge Chávez International Airport", 
     "Auckland Airport", 
     "Daniel K. Inouye International Airport")
+
+## South America hubs are currently commented out
+# hubs_SA <- c("El Dorado International Airport", 
+    # "São Paulo–Guarulhos International Airport", 
+    # "Jorge Chávez International Airport", 
+    # "Arturo Merino Benítez International Airport", 
+    # "São Paulo–Congonhas Airport")
+## Oceania hubs are currently commented out
+# hubs_OC <- c("Sydney Airport",
+#     "Melbourne Airport", 
+#     "Brisbane Airport", 
+#     "Auckland Airport", 
+#     "Daniel K. Inouye International Airport")
 ```
 
 ```{r}
 # For each hub, add rank number and region category variables. 
-hubs_NA <- data.frame(hub = hubs_NA, rank = 1:5, region = "North America")
-hubs_EU <- data.frame(hub = hubs_EU, rank = 1:5, region = "Europe")
-hubs_AS <- data.frame(hub = hubs_AS, rank = 1:5, region = "Asia")
-hubs_SA <- data.frame(hub = hubs_SA, rank = 1:5, region = "South America")
 hubs_AF <- data.frame(hub = hubs_AF, rank = 1:5, region = "Africa")
-hubs_OC <- data.frame(hub = hubs_OC, rank = 1:5, region = "Oceania")
+hubs_NA <- data.frame(hub = hubs_NA, rank = 1:5, region = "Americas")
+hubs_AS <- data.frame(hub = hubs_AS, rank = 1:5, region = "East Asia and the Pacific")
+hubs_EU <- data.frame(hub = hubs_EU, rank = 1:5, region = "Europe")
+hubs_ME <- data.frame(hub = hubs_ME, rank = 1:5, region = "Middle East")
+hubs_SA <- data.frame(hub = hubs_SA, rank = 1:5, region = "South Asia")
+hubs_OT <- data.frame(hub = hubs_OT, rank = 1:5, region = "Other")
+
+## Commented out regions
+# hubs_SA <- data.frame(hub = hubs_SA, rank = 1:5, region = "South America")
+# hubs_OC <- data.frame(hub = hubs_OC, rank = 1:5, region = "Oceania")
 
 # All hubs
-all_hubs <- rbind(hubs_NA, hubs_EU, hubs_AS, hubs_SA, hubs_AF, hubs_OC)
+all_hubs <- rbind(hubs_AF, hubs_NA, hubs_AS, hubs_EU, hubs_ME, hubs_SA, hubs_OT)
 
 # Print the list: 
 print(all_hubs)
@@ -107,34 +141,39 @@ od_pairs <- od_pairs[od_pairs$origin != od_pairs$destination, ]
 
 # Match the hub names above to stable IATA airport codes.
 hub_iata <- c(
+    "Cairo International Airport" = "CAI",
+    "OR Tambo International Airport" = "JNB",
+    "Bole International Airport" = "ADD",
+    "Mohammed V International Airport" = "CMN",
+    "Hurghada International Airport" = "HRG",
     "Hartsfield–Jackson Atlanta International Airport" = "ATL",
     "Dallas Fort Worth International Airport" = "DFW",
     "O'Hare International Airport" = "ORD",
     "Denver International Airport" = "DEN",
     "Los Angeles International Airport" = "LAX",
+    "Beijing Capital International Airport" = "PEK",
+    "Tokyo Haneda Airport" = "HND",
+    "Shanghai Pudong International Airport" = "PVG",
+    "Guangzhou Baiyun International Airport" = "CAN",
+    "Sydney Airport" = "SYD",
     "Heathrow Airport" = "LHR",
     "Istanbul Airport" = "IST",
     "Charles de Gaulle Airport" = "CDG",
     "Amsterdam Airport Schiphol" = "AMS",
     "Adolfo Suárez Madrid–Barajas Airport" = "MAD",
     "Dubai International Airport" = "DXB",
-    "Tokyo Haneda Airport" = "HND",
-    "Shanghai Pudong International Airport" = "PVG",
-    "Guangzhou Baiyun International Airport" = "CAN",
+    "Hamad International Airport" = "DOH",
+    "King Abdulaziz International Airport" = "JED",
+    "Istanbul Sabiha Gökçen International Airport" = "SAW",
+    "King Khalid International Airport" = "RUH",
     "Indira Gandhi International Airport" = "DEL",
+    "Singapore Changi Airport" = "SIN",
+    "Suvarnabhumi Airport" = "BKK",
+    "Soekarno–Hatta International Airport" = "CGK",
+    "Kuala Lumpur International Airport" = "KUL",
     "El Dorado International Airport" = "BOG",
     "São Paulo–Guarulhos International Airport" = "GRU",
     "Jorge Chávez International Airport" = "LIM",
-    "Arturo Merino Benítez International Airport" = "SCL",
-    "São Paulo–Congonhas Airport" = "CGH",
-    "Cairo International Airport" = "CAI",
-    "OR Tambo International Airport" = "JNB",
-    "Bole International Airport" = "ADD",
-    "Mohammed V International Airport" = "CMN",
-    "Hurghada International Airport" = "HRG",
-    "Sydney Airport" = "SYD",
-    "Melbourne Airport" = "MEL",
-    "Brisbane Airport" = "BNE",
     "Auckland Airport" = "AKL",
     "Daniel K. Inouye International Airport" = "HNL"
 )
@@ -368,23 +407,36 @@ We use the US EIA (Energy Information Administration) data on historical oil pri
 # oil_data_path <- "F:\\GEP\\GEP_recreation\\data\\us_crude_oil_price_historic_quarters.xls"
 # oil_data <- rio::import(oil_data_path, sheet = 2)
 oil_regional_path <- "F:\\GEP\\GEP_recreation\\data\\crude_oil_historic_monthly_regional.xls"
-oil_regional_data <- rio::import(oil_regional_path, sheet = 2) 
-# Keep the oil observation used for the airfare cross-section.
-oil_regional_data_merge <- oil_regional_data[500, , drop = FALSE]
+oil_regional_data <- rio::import(oil_regional_path, sheet = 2)
 
-# Assign each origin region to its oil-price series.
+# Use the latest valid observation for each oil series so every airfare region
+# receives a numeric oil price rather than a missing value from a single row.
+latest_oil_value <- function(variable, data) {
+    values <- suppressWarnings(as.numeric(data[[variable]]))
+    values <- values[is.finite(values)]
+    if (length(values) == 0) return(NA_real_)
+    values[length(values)]
+}
+
+# Assign each origin region to the oil-price benchmark it should use.
 region_oil_map <- data.frame(
     origin_region = c(
-        "North America", "Europe", "Asia", "South America",
-        "Africa", "Oceania"
+        "Africa",
+        "Americas",
+        "East Asia and the Pacific",
+        "Europe",
+        "Middle East",
+        "South Asia",
+        "Other"
     ),
     oil_variable = c(
-        "price_barrel_gen",       # North America: USA/general price
-        "price_barrel_opec",      # Europe: OPEC price
-        "price_barrel_persian_gulf", # Asia: Persian Gulf price
-        "price_barrel_non_opec",  # South America: non-OPEC price
-        "price_barrel_non_opec",  # Africa: non-OPEC price
-        "price_barrel_non_opec"   # Oceania: non-OPEC price
+        "price_barrel_non_opec",      # Africa: non-OPEC benchmark
+        "price_barrel_gen",           # Americas: general crude benchmark
+        "price_barrel_non_opec",      # East Asia and the Pacific: non-OPEC benchmark
+        "price_barrel_opec",          # Europe: OPEC benchmark
+        "price_barrel_persian_gulf",  # Middle East: Persian Gulf benchmark
+        "price_barrel_non_opec",      # South Asia: non-OPEC benchmark
+        "price_barrel_non_opec"       # Other: non-OPEC benchmark
     ),
     stringsAsFactors = FALSE
 )
@@ -396,11 +448,20 @@ airfare_data <- merge(
     all.x = TRUE,
     sort = FALSE
 )
-airfare_data$oil_price <- mapply(
-    function(variable) oil_regional_data_merge[[variable]][1],
-    airfare_data$oil_variable
+airfare_data$oil_price <- vapply(
+    airfare_data$oil_variable,
+    function(variable) {
+        latest_oil_value(variable, oil_regional_data)
+    },
+    numeric(1)
 )
-airfare_data$oil_date <- as.Date(oil_regional_data_merge$Date[1])
+airfare_data$oil_price <- as.numeric(airfare_data$oil_price)
+airfare_data$oil_date <- as.Date(max(oil_regional_data$Date, na.rm = TRUE))
+
+if (any(is.na(airfare_data$oil_price))) {
+    missing_regions <- unique(airfare_data$origin_region[is.na(airfare_data$oil_price)])
+    stop("Missing oil price for regions: ", paste(missing_regions, collapse = ", "))
+}
 
 # Merge the first-five-flight average into the O-D data by pair ID.
 airfare_data <- merge(

@@ -124,89 +124,162 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="collecting-air-travel-prices" class="level1">
 <h1>Collecting Air Travel Prices</h1>
 <p>In this section, I generate a matrix of orgin-destination prices for various air travel routes. This was collected on Sept.&nbsp;8th, 2026. The search assumptions is for a round trip journey for 1 person without any checked luggage. The round trip is assumed to be 1 week flying from Friday to Friday (e.g., Sept.&nbsp;11th - Sept.&nbsp;18th). The prices are presented in USD. Flights are filtered by “Best” and sorted by “Price”. I record and average the first five flights that are presented. I use <code>flightlist</code> instead of <code>Google Flights</code> for data collection: https://www.flightlist.io/ This is because it requires no API to query, is free, and the platform is simple.</p>
-<p>Travel nodes are selected from the most traveled transit hubs globally, as identified by Wikipedia: https://en.wikipedia.org/wiki/List_of_busiest_airports_by_passenger_traffic Some of the regions are not limited on this list. So I supplement using: - Africa: https://en.wikipedia.org/wiki/List_of_the_busiest_airports_in_Africa - South America: https://en.wikipedia.org/wiki/List_of_the_busiest_airports_in_South_America - Oceania: https://en.wikipedia.org/wiki/List_of_the_busiest_airports_in_Oceania The aim of the exercise is to get a range (IQR) for air travel prices by region/contient. So, I take the top five hubs for the following regions: - North America - Europe - Asia - South America - Africa - Oceania From here, I can then construct a matrix of every hub to any other hub. This provide both between and within airfare price comparisions. So this data wil be averaged across flights for O-D pairs, then aggregated by O-D pairs to the regional or continental level.</p>
+<p>Travel nodes are selected from the most traveled transit hubs globally, as identified by Wikipedia: https://en.wikipedia.org/wiki/List_of_busiest_airports_by_passenger_traffic Some of the regions are not limited on this list. So I supplement using: - Africa: https://en.wikipedia.org/wiki/List_of_the_busiest_airports_in_Africa - South America: https://en.wikipedia.org/wiki/List_of_the_busiest_airports_in_South_America - Oceania: https://en.wikipedia.org/wiki/List_of_the_busiest_airports_in_Oceania - Middle East: https://en.wikipedia.org/wiki/List_of_the_busiest_airports_in_the_Middle_East - Southeast Asia: https://en.wikipedia.org/wiki/List_of_the_busiest_airports_in_Southeast_Asia The aim of the exercise is to get a range (IQR) for air travel prices by region/contient. So, I take the top five hubs for the following regions: - North America - Europe - Asia - South America - Africa - Oceania From here, I can then construct a matrix of every hub to any other hub. This provide both between and within airfare price comparisions. So this data wil be averaged across flights for O-D pairs, then aggregated by O-D pairs to the regional or continental level.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Clear environment to restart </span></span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">rm</span>(<span class="at">list =</span> <span class="fu">ls</span>())</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="co"># List the regional hubs for each continent</span></span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>hubs_NA <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"Hartsfield–Jackson Atlanta International Airport"</span>, </span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Dallas Fort Worth International Airport"</span>, </span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    <span class="st">"O'Hare International Airport"</span>, </span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Denver International Airport"</span>, </span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Los Angeles International Airport"</span>)</span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>hubs_EU <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"Heathrow Airport"</span>, </span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Istanbul Airport"</span>, </span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Charles de Gaulle Airport"</span>, </span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Amsterdam Airport Schiphol"</span>, </span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Adolfo Suárez Madrid–Barajas Airport"</span>)</span>
-<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>hubs_AS <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"Dubai International Airport"</span>, </span>
-<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Tokyo Haneda Airport"</span>, </span>
-<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Shanghai Pudong International Airport"</span>, </span>
-<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Guangzhou Baiyun International Airport"</span>, </span>
-<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Indira Gandhi International Airport"</span>)</span>
-<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>hubs_SA <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"El Dorado International Airport"</span>, </span>
-<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>    <span class="st">"São Paulo–Guarulhos International Airport"</span>, </span>
-<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Jorge Chávez International Airport"</span>, </span>
-<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Arturo Merino Benítez International Airport"</span>, </span>
-<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>    <span class="st">"São Paulo–Congonhas Airport"</span>)</span>
-<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>hubs_AF <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"Cairo International Airport"</span>, </span>
-<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>    <span class="st">"OR Tambo International Airport"</span>, </span>
-<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Bole International Airport"</span>, </span>
-<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Mohammed V International Airport"</span>, </span>
-<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Hurghada International Airport"</span>)</span>
-<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a>hubs_OC <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"Sydney Airport"</span>,</span>
-<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Melbourne Airport"</span>, </span>
-<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Brisbane Airport"</span>, </span>
-<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Auckland Airport"</span>, </span>
-<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Daniel K. Inouye International Airport"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Updated regions to match the UNWTO regional classifications</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>        <span class="co"># (Africa, Americas, East Asia and the Pacific, Europe, Middle East, South Asia, Other)</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Africa</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>hubs_AF <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"Cairo International Airport"</span>, </span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>    <span class="st">"OR Tambo International Airport"</span>, </span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Bole International Airport"</span>, </span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Mohammed V International Airport"</span>, </span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Hurghada International Airport"</span>)</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Americas</span></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>hubs_NA <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"Hartsfield–Jackson Atlanta International Airport"</span>, </span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Dallas Fort Worth International Airport"</span>, </span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>    <span class="st">"O'Hare International Airport"</span>, </span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Denver International Airport"</span>, </span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Los Angeles International Airport"</span>)</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a><span class="co"># East Asia and Pacific</span></span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>hubs_AS <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"Beijing Capital International Airport"</span>, </span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Tokyo Haneda Airport"</span>, </span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Shanghai Pudong International Airport"</span>, </span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Guangzhou Baiyun International Airport"</span>, </span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Sydney Airport"</span>)</span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a><span class="co"># Europe</span></span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>hubs_EU <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"Heathrow Airport"</span>, </span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Istanbul Airport"</span>, </span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Charles de Gaulle Airport"</span>, </span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Amsterdam Airport Schiphol"</span>, </span>
+<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Adolfo Suárez Madrid–Barajas Airport"</span>)</span>
+<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a><span class="co"># Middle East </span></span>
+<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>hubs_ME <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"Dubai International Airport"</span>, </span>
+<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Hamad International Airport"</span>,</span>
+<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a>    <span class="st">"King Abdulaziz International Airport"</span>,</span>
+<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Istanbul Sabiha Gökçen International Airport"</span>,</span>
+<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a>    <span class="st">"King Khalid International Airport"</span>)</span>
+<span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a><span class="co"># South Asia</span></span>
+<span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a>hubs_SA <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"Indira Gandhi International Airport"</span>, </span>
+<span id="cb1-39"><a href="#cb1-39" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Singapore Changi Airport"</span>, </span>
+<span id="cb1-40"><a href="#cb1-40" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Suvarnabhumi Airport"</span>, </span>
+<span id="cb1-41"><a href="#cb1-41" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Soekarno–Hatta International Airport"</span>,</span>
+<span id="cb1-42"><a href="#cb1-42" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Kuala Lumpur International Airport"</span>)</span>
+<span id="cb1-43"><a href="#cb1-43" aria-hidden="true" tabindex="-1"></a><span class="co"># Other </span></span>
+<span id="cb1-44"><a href="#cb1-44" aria-hidden="true" tabindex="-1"></a>hubs_OT <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"El Dorado International Airport"</span>, </span>
+<span id="cb1-45"><a href="#cb1-45" aria-hidden="true" tabindex="-1"></a>    <span class="st">"São Paulo–Guarulhos International Airport"</span>, </span>
+<span id="cb1-46"><a href="#cb1-46" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Jorge Chávez International Airport"</span>, </span>
+<span id="cb1-47"><a href="#cb1-47" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Auckland Airport"</span>, </span>
+<span id="cb1-48"><a href="#cb1-48" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Daniel K. Inouye International Airport"</span>)</span>
+<span id="cb1-49"><a href="#cb1-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-50"><a href="#cb1-50" aria-hidden="true" tabindex="-1"></a><span class="do">## South America hubs are currently commented out</span></span>
+<span id="cb1-51"><a href="#cb1-51" aria-hidden="true" tabindex="-1"></a><span class="co"># hubs_SA &lt;- c("El Dorado International Airport", </span></span>
+<span id="cb1-52"><a href="#cb1-52" aria-hidden="true" tabindex="-1"></a>    <span class="co"># "São Paulo–Guarulhos International Airport", </span></span>
+<span id="cb1-53"><a href="#cb1-53" aria-hidden="true" tabindex="-1"></a>    <span class="co"># "Jorge Chávez International Airport", </span></span>
+<span id="cb1-54"><a href="#cb1-54" aria-hidden="true" tabindex="-1"></a>    <span class="co"># "Arturo Merino Benítez International Airport", </span></span>
+<span id="cb1-55"><a href="#cb1-55" aria-hidden="true" tabindex="-1"></a>    <span class="co"># "São Paulo–Congonhas Airport")</span></span>
+<span id="cb1-56"><a href="#cb1-56" aria-hidden="true" tabindex="-1"></a><span class="do">## Oceania hubs are currently commented out</span></span>
+<span id="cb1-57"><a href="#cb1-57" aria-hidden="true" tabindex="-1"></a><span class="co"># hubs_OC &lt;- c("Sydney Airport",</span></span>
+<span id="cb1-58"><a href="#cb1-58" aria-hidden="true" tabindex="-1"></a><span class="co">#     "Melbourne Airport", </span></span>
+<span id="cb1-59"><a href="#cb1-59" aria-hidden="true" tabindex="-1"></a><span class="co">#     "Brisbane Airport", </span></span>
+<span id="cb1-60"><a href="#cb1-60" aria-hidden="true" tabindex="-1"></a><span class="co">#     "Auckland Airport", </span></span>
+<span id="cb1-61"><a href="#cb1-61" aria-hidden="true" tabindex="-1"></a><span class="co">#     "Daniel K. Inouye International Airport")</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># For each hub, add rank number and region category variables. </span></span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>hubs_NA <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">hub =</span> hubs_NA, <span class="at">rank =</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">5</span>, <span class="at">region =</span> <span class="st">"North America"</span>)</span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>hubs_EU <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">hub =</span> hubs_EU, <span class="at">rank =</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">5</span>, <span class="at">region =</span> <span class="st">"Europe"</span>)</span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>hubs_AS <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">hub =</span> hubs_AS, <span class="at">rank =</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">5</span>, <span class="at">region =</span> <span class="st">"Asia"</span>)</span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>hubs_SA <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">hub =</span> hubs_SA, <span class="at">rank =</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">5</span>, <span class="at">region =</span> <span class="st">"South America"</span>)</span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>hubs_AF <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">hub =</span> hubs_AF, <span class="at">rank =</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">5</span>, <span class="at">region =</span> <span class="st">"Africa"</span>)</span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>hubs_OC <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">hub =</span> hubs_OC, <span class="at">rank =</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">5</span>, <span class="at">region =</span> <span class="st">"Oceania"</span>)</span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="co"># All hubs</span></span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>all_hubs <span class="ot">&lt;-</span> <span class="fu">rbind</span>(hubs_NA, hubs_EU, hubs_AS, hubs_SA, hubs_AF, hubs_OC)</span>
-<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Print the list: </span></span>
-<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(all_hubs)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>hubs_AF <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">hub =</span> hubs_AF, <span class="at">rank =</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">5</span>, <span class="at">region =</span> <span class="st">"Africa"</span>)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>hubs_NA <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">hub =</span> hubs_NA, <span class="at">rank =</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">5</span>, <span class="at">region =</span> <span class="st">"Americas"</span>)</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>hubs_AS <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">hub =</span> hubs_AS, <span class="at">rank =</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">5</span>, <span class="at">region =</span> <span class="st">"East Asia and the Pacific"</span>)</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>hubs_EU <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">hub =</span> hubs_EU, <span class="at">rank =</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">5</span>, <span class="at">region =</span> <span class="st">"Europe"</span>)</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>hubs_ME <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">hub =</span> hubs_ME, <span class="at">rank =</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">5</span>, <span class="at">region =</span> <span class="st">"Middle East"</span>)</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>hubs_SA <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">hub =</span> hubs_SA, <span class="at">rank =</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">5</span>, <span class="at">region =</span> <span class="st">"South Asia"</span>)</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>hubs_OT <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">hub =</span> hubs_OT, <span class="at">rank =</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">5</span>, <span class="at">region =</span> <span class="st">"Other"</span>)</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="do">## Commented out regions</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="co"># hubs_SA &lt;- data.frame(hub = hubs_SA, rank = 1:5, region = "South America")</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="co"># hubs_OC &lt;- data.frame(hub = hubs_OC, rank = 1:5, region = "Oceania")</span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a><span class="co"># All hubs</span></span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>all_hubs <span class="ot">&lt;-</span> <span class="fu">rbind</span>(hubs_AF, hubs_NA, hubs_AS, hubs_EU, hubs_ME, hubs_SA, hubs_OT)</span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a><span class="co"># Print the list: </span></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(all_hubs)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>                                                hub rank        region
-1  Hartsfield–Jackson Atlanta International Airport    1 North America
-2           Dallas Fort Worth International Airport    2 North America
-3                      O'Hare International Airport    3 North America
-4                      Denver International Airport    4 North America
-5                 Los Angeles International Airport    5 North America
-6                                  Heathrow Airport    1        Europe
-7                                  Istanbul Airport    2        Europe
-8                         Charles de Gaulle Airport    3        Europe
-9                        Amsterdam Airport Schiphol    4        Europe
-10             Adolfo Suárez Madrid–Barajas Airport    5        Europe
-11                      Dubai International Airport    1          Asia
-12                             Tokyo Haneda Airport    2          Asia
-13            Shanghai Pudong International Airport    3          Asia
-14           Guangzhou Baiyun International Airport    4          Asia
-15              Indira Gandhi International Airport    5          Asia
-16                  El Dorado International Airport    1 South America
-17        São Paulo–Guarulhos International Airport    2 South America
-18               Jorge Chávez International Airport    3 South America
-19      Arturo Merino Benítez International Airport    4 South America
-20                      São Paulo–Congonhas Airport    5 South America
-21                      Cairo International Airport    1        Africa
-22                   OR Tambo International Airport    2        Africa
-23                       Bole International Airport    3        Africa
-24                 Mohammed V International Airport    4        Africa
-25                   Hurghada International Airport    5        Africa
-26                                   Sydney Airport    1       Oceania
-27                                Melbourne Airport    2       Oceania
-28                                 Brisbane Airport    3       Oceania
-29                                 Auckland Airport    4       Oceania
-30           Daniel K. Inouye International Airport    5       Oceania</code></pre>
+<pre><code>                                                hub rank
+1                       Cairo International Airport    1
+2                    OR Tambo International Airport    2
+3                        Bole International Airport    3
+4                  Mohammed V International Airport    4
+5                    Hurghada International Airport    5
+6  Hartsfield–Jackson Atlanta International Airport    1
+7           Dallas Fort Worth International Airport    2
+8                      O'Hare International Airport    3
+9                      Denver International Airport    4
+10                Los Angeles International Airport    5
+11            Beijing Capital International Airport    1
+12                             Tokyo Haneda Airport    2
+13            Shanghai Pudong International Airport    3
+14           Guangzhou Baiyun International Airport    4
+15                                   Sydney Airport    5
+16                                 Heathrow Airport    1
+17                                 Istanbul Airport    2
+18                        Charles de Gaulle Airport    3
+19                       Amsterdam Airport Schiphol    4
+20             Adolfo Suárez Madrid–Barajas Airport    5
+21                      Dubai International Airport    1
+22                      Hamad International Airport    2
+23             King Abdulaziz International Airport    3
+24     Istanbul Sabiha Gökçen International Airport    4
+25                King Khalid International Airport    5
+26              Indira Gandhi International Airport    1
+27                         Singapore Changi Airport    2
+28                             Suvarnabhumi Airport    3
+29             Soekarno–Hatta International Airport    4
+30               Kuala Lumpur International Airport    5
+31                  El Dorado International Airport    1
+32        São Paulo–Guarulhos International Airport    2
+33               Jorge Chávez International Airport    3
+34                                 Auckland Airport    4
+35           Daniel K. Inouye International Airport    5
+                      region
+1                     Africa
+2                     Africa
+3                     Africa
+4                     Africa
+5                     Africa
+6                   Americas
+7                   Americas
+8                   Americas
+9                   Americas
+10                  Americas
+11 East Asia and the Pacific
+12 East Asia and the Pacific
+13 East Asia and the Pacific
+14 East Asia and the Pacific
+15 East Asia and the Pacific
+16                    Europe
+17                    Europe
+18                    Europe
+19                    Europe
+20                    Europe
+21               Middle East
+22               Middle East
+23               Middle East
+24               Middle East
+25               Middle East
+26                South Asia
+27                South Asia
+28                South Asia
+29                South Asia
+30                South Asia
+31                     Other
+32                     Other
+33                     Other
+34                     Other
+35                     Other</code></pre>
 </div>
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Construct the matrix of regional hubs to generate all possible O-D pairings</span></span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>od_pairs <span class="ot">&lt;-</span> <span class="fu">expand.grid</span>(<span class="at">origin =</span> all_hubs<span class="sc">$</span>hub, <span class="at">destination =</span> all_hubs<span class="sc">$</span>hub)</span>
@@ -224,104 +297,102 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Match the hub names above to stable IATA airport codes.</span></span>
 <span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>hub_iata <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Hartsfield–Jackson Atlanta International Airport"</span> <span class="ot">=</span> <span class="st">"ATL"</span>,</span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Dallas Fort Worth International Airport"</span> <span class="ot">=</span> <span class="st">"DFW"</span>,</span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>    <span class="st">"O'Hare International Airport"</span> <span class="ot">=</span> <span class="st">"ORD"</span>,</span>
-<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Denver International Airport"</span> <span class="ot">=</span> <span class="st">"DEN"</span>,</span>
-<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Los Angeles International Airport"</span> <span class="ot">=</span> <span class="st">"LAX"</span>,</span>
-<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Heathrow Airport"</span> <span class="ot">=</span> <span class="st">"LHR"</span>,</span>
-<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Istanbul Airport"</span> <span class="ot">=</span> <span class="st">"IST"</span>,</span>
-<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Charles de Gaulle Airport"</span> <span class="ot">=</span> <span class="st">"CDG"</span>,</span>
-<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Amsterdam Airport Schiphol"</span> <span class="ot">=</span> <span class="st">"AMS"</span>,</span>
-<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Adolfo Suárez Madrid–Barajas Airport"</span> <span class="ot">=</span> <span class="st">"MAD"</span>,</span>
-<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Dubai International Airport"</span> <span class="ot">=</span> <span class="st">"DXB"</span>,</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Cairo International Airport"</span> <span class="ot">=</span> <span class="st">"CAI"</span>,</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    <span class="st">"OR Tambo International Airport"</span> <span class="ot">=</span> <span class="st">"JNB"</span>,</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Bole International Airport"</span> <span class="ot">=</span> <span class="st">"ADD"</span>,</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Mohammed V International Airport"</span> <span class="ot">=</span> <span class="st">"CMN"</span>,</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Hurghada International Airport"</span> <span class="ot">=</span> <span class="st">"HRG"</span>,</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Hartsfield–Jackson Atlanta International Airport"</span> <span class="ot">=</span> <span class="st">"ATL"</span>,</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Dallas Fort Worth International Airport"</span> <span class="ot">=</span> <span class="st">"DFW"</span>,</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>    <span class="st">"O'Hare International Airport"</span> <span class="ot">=</span> <span class="st">"ORD"</span>,</span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Denver International Airport"</span> <span class="ot">=</span> <span class="st">"DEN"</span>,</span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Los Angeles International Airport"</span> <span class="ot">=</span> <span class="st">"LAX"</span>,</span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Beijing Capital International Airport"</span> <span class="ot">=</span> <span class="st">"PEK"</span>,</span>
 <span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Tokyo Haneda Airport"</span> <span class="ot">=</span> <span class="st">"HND"</span>,</span>
 <span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Shanghai Pudong International Airport"</span> <span class="ot">=</span> <span class="st">"PVG"</span>,</span>
 <span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Guangzhou Baiyun International Airport"</span> <span class="ot">=</span> <span class="st">"CAN"</span>,</span>
-<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Indira Gandhi International Airport"</span> <span class="ot">=</span> <span class="st">"DEL"</span>,</span>
-<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>    <span class="st">"El Dorado International Airport"</span> <span class="ot">=</span> <span class="st">"BOG"</span>,</span>
-<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>    <span class="st">"São Paulo–Guarulhos International Airport"</span> <span class="ot">=</span> <span class="st">"GRU"</span>,</span>
-<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Jorge Chávez International Airport"</span> <span class="ot">=</span> <span class="st">"LIM"</span>,</span>
-<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Arturo Merino Benítez International Airport"</span> <span class="ot">=</span> <span class="st">"SCL"</span>,</span>
-<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>    <span class="st">"São Paulo–Congonhas Airport"</span> <span class="ot">=</span> <span class="st">"CGH"</span>,</span>
-<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Cairo International Airport"</span> <span class="ot">=</span> <span class="st">"CAI"</span>,</span>
-<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a>    <span class="st">"OR Tambo International Airport"</span> <span class="ot">=</span> <span class="st">"JNB"</span>,</span>
-<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Bole International Airport"</span> <span class="ot">=</span> <span class="st">"ADD"</span>,</span>
-<span id="cb5-28"><a href="#cb5-28" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Mohammed V International Airport"</span> <span class="ot">=</span> <span class="st">"CMN"</span>,</span>
-<span id="cb5-29"><a href="#cb5-29" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Hurghada International Airport"</span> <span class="ot">=</span> <span class="st">"HRG"</span>,</span>
-<span id="cb5-30"><a href="#cb5-30" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Sydney Airport"</span> <span class="ot">=</span> <span class="st">"SYD"</span>,</span>
-<span id="cb5-31"><a href="#cb5-31" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Melbourne Airport"</span> <span class="ot">=</span> <span class="st">"MEL"</span>,</span>
-<span id="cb5-32"><a href="#cb5-32" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Brisbane Airport"</span> <span class="ot">=</span> <span class="st">"BNE"</span>,</span>
-<span id="cb5-33"><a href="#cb5-33" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Auckland Airport"</span> <span class="ot">=</span> <span class="st">"AKL"</span>,</span>
-<span id="cb5-34"><a href="#cb5-34" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Daniel K. Inouye International Airport"</span> <span class="ot">=</span> <span class="st">"HNL"</span></span>
-<span id="cb5-35"><a href="#cb5-35" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb5-36"><a href="#cb5-36" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-37"><a href="#cb5-37" aria-hidden="true" tabindex="-1"></a><span class="co"># Download airport coordinates. The source stores coordinates as longitude, latitude.</span></span>
-<span id="cb5-38"><a href="#cb5-38" aria-hidden="true" tabindex="-1"></a>airport_data <span class="ot">&lt;-</span> <span class="fu">read.csv</span>(</span>
-<span id="cb5-39"><a href="#cb5-39" aria-hidden="true" tabindex="-1"></a>    <span class="st">"https://raw.githubusercontent.com/datasets/airport-codes/master/data/airport-codes.csv"</span>,</span>
-<span id="cb5-40"><a href="#cb5-40" aria-hidden="true" tabindex="-1"></a>    <span class="at">stringsAsFactors =</span> <span class="cn">FALSE</span></span>
-<span id="cb5-41"><a href="#cb5-41" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb5-42"><a href="#cb5-42" aria-hidden="true" tabindex="-1"></a>airport_locations <span class="ot">&lt;-</span> airport_data[<span class="fu">match</span>(<span class="fu">unname</span>(hub_iata), airport_data<span class="sc">$</span>iata_code), ]</span>
-<span id="cb5-43"><a href="#cb5-43" aria-hidden="true" tabindex="-1"></a>airport_locations<span class="sc">$</span>hub <span class="ot">&lt;-</span> <span class="fu">names</span>(hub_iata)</span>
-<span id="cb5-44"><a href="#cb5-44" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-45"><a href="#cb5-45" aria-hidden="true" tabindex="-1"></a><span class="co"># Match airport coordinates to O-D pairs</span></span>
-<span id="cb5-46"><a href="#cb5-46" aria-hidden="true" tabindex="-1"></a>coordinates <span class="ot">&lt;-</span> <span class="fu">do.call</span>(</span>
-<span id="cb5-47"><a href="#cb5-47" aria-hidden="true" tabindex="-1"></a>    rbind,</span>
-<span id="cb5-48"><a href="#cb5-48" aria-hidden="true" tabindex="-1"></a>    <span class="fu">strsplit</span>(airport_locations<span class="sc">$</span>coordinates, <span class="st">", "</span>, <span class="at">fixed =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb5-49"><a href="#cb5-49" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb5-50"><a href="#cb5-50" aria-hidden="true" tabindex="-1"></a>airport_locations<span class="sc">$</span>longitude <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(coordinates[, <span class="dv">1</span>])</span>
-<span id="cb5-51"><a href="#cb5-51" aria-hidden="true" tabindex="-1"></a>airport_locations<span class="sc">$</span>latitude <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(coordinates[, <span class="dv">2</span>])</span>
-<span id="cb5-52"><a href="#cb5-52" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-53"><a href="#cb5-53" aria-hidden="true" tabindex="-1"></a><span class="co"># Calculate great-circle distance in kilometers using the Haversine formula.</span></span>
-<span id="cb5-54"><a href="#cb5-54" aria-hidden="true" tabindex="-1"></a>haversine_km <span class="ot">&lt;-</span> <span class="cf">function</span>(lon1, lat1, lon2, lat2) {</span>
-<span id="cb5-55"><a href="#cb5-55" aria-hidden="true" tabindex="-1"></a>    radians <span class="ot">&lt;-</span> pi <span class="sc">/</span> <span class="dv">180</span></span>
-<span id="cb5-56"><a href="#cb5-56" aria-hidden="true" tabindex="-1"></a>    delta_lon <span class="ot">&lt;-</span> (lon2 <span class="sc">-</span> lon1) <span class="sc">*</span> radians</span>
-<span id="cb5-57"><a href="#cb5-57" aria-hidden="true" tabindex="-1"></a>    delta_lat <span class="ot">&lt;-</span> (lat2 <span class="sc">-</span> lat1) <span class="sc">*</span> radians</span>
-<span id="cb5-58"><a href="#cb5-58" aria-hidden="true" tabindex="-1"></a>    a <span class="ot">&lt;-</span> <span class="fu">sin</span>(delta_lat <span class="sc">/</span> <span class="dv">2</span>)<span class="sc">^</span><span class="dv">2</span> <span class="sc">+</span></span>
-<span id="cb5-59"><a href="#cb5-59" aria-hidden="true" tabindex="-1"></a>        <span class="fu">cos</span>(lat1 <span class="sc">*</span> radians) <span class="sc">*</span> <span class="fu">cos</span>(lat2 <span class="sc">*</span> radians) <span class="sc">*</span> <span class="fu">sin</span>(delta_lon <span class="sc">/</span> <span class="dv">2</span>)<span class="sc">^</span><span class="dv">2</span></span>
-<span id="cb5-60"><a href="#cb5-60" aria-hidden="true" tabindex="-1"></a>    <span class="dv">6371</span> <span class="sc">*</span> <span class="dv">2</span> <span class="sc">*</span> <span class="fu">asin</span>(<span class="fu">sqrt</span>(a))</span>
-<span id="cb5-61"><a href="#cb5-61" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb5-62"><a href="#cb5-62" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-63"><a href="#cb5-63" aria-hidden="true" tabindex="-1"></a>origin_locations <span class="ot">&lt;-</span> airport_locations[<span class="fu">match</span>(od_pairs<span class="sc">$</span>origin, airport_locations<span class="sc">$</span>hub), ]</span>
-<span id="cb5-64"><a href="#cb5-64" aria-hidden="true" tabindex="-1"></a>destination_locations <span class="ot">&lt;-</span> airport_locations[<span class="fu">match</span>(od_pairs<span class="sc">$</span>destination, airport_locations<span class="sc">$</span>hub), ]</span>
-<span id="cb5-65"><a href="#cb5-65" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-66"><a href="#cb5-66" aria-hidden="true" tabindex="-1"></a><span class="co"># Calculate distance</span></span>
-<span id="cb5-67"><a href="#cb5-67" aria-hidden="true" tabindex="-1"></a>od_pairs<span class="sc">$</span>distance_km <span class="ot">&lt;-</span> <span class="fu">haversine_km</span>(</span>
-<span id="cb5-68"><a href="#cb5-68" aria-hidden="true" tabindex="-1"></a>    origin_locations<span class="sc">$</span>longitude,</span>
-<span id="cb5-69"><a href="#cb5-69" aria-hidden="true" tabindex="-1"></a>    origin_locations<span class="sc">$</span>latitude,</span>
-<span id="cb5-70"><a href="#cb5-70" aria-hidden="true" tabindex="-1"></a>    destination_locations<span class="sc">$</span>longitude,</span>
-<span id="cb5-71"><a href="#cb5-71" aria-hidden="true" tabindex="-1"></a>    destination_locations<span class="sc">$</span>latitude</span>
-<span id="cb5-72"><a href="#cb5-72" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Sydney Airport"</span> <span class="ot">=</span> <span class="st">"SYD"</span>,</span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Heathrow Airport"</span> <span class="ot">=</span> <span class="st">"LHR"</span>,</span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Istanbul Airport"</span> <span class="ot">=</span> <span class="st">"IST"</span>,</span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Charles de Gaulle Airport"</span> <span class="ot">=</span> <span class="st">"CDG"</span>,</span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Amsterdam Airport Schiphol"</span> <span class="ot">=</span> <span class="st">"AMS"</span>,</span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Adolfo Suárez Madrid–Barajas Airport"</span> <span class="ot">=</span> <span class="st">"MAD"</span>,</span>
+<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Dubai International Airport"</span> <span class="ot">=</span> <span class="st">"DXB"</span>,</span>
+<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Hamad International Airport"</span> <span class="ot">=</span> <span class="st">"DOH"</span>,</span>
+<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a>    <span class="st">"King Abdulaziz International Airport"</span> <span class="ot">=</span> <span class="st">"JED"</span>,</span>
+<span id="cb5-28"><a href="#cb5-28" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Istanbul Sabiha Gökçen International Airport"</span> <span class="ot">=</span> <span class="st">"SAW"</span>,</span>
+<span id="cb5-29"><a href="#cb5-29" aria-hidden="true" tabindex="-1"></a>    <span class="st">"King Khalid International Airport"</span> <span class="ot">=</span> <span class="st">"RUH"</span>,</span>
+<span id="cb5-30"><a href="#cb5-30" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Indira Gandhi International Airport"</span> <span class="ot">=</span> <span class="st">"DEL"</span>,</span>
+<span id="cb5-31"><a href="#cb5-31" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Singapore Changi Airport"</span> <span class="ot">=</span> <span class="st">"SIN"</span>,</span>
+<span id="cb5-32"><a href="#cb5-32" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Suvarnabhumi Airport"</span> <span class="ot">=</span> <span class="st">"BKK"</span>,</span>
+<span id="cb5-33"><a href="#cb5-33" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Soekarno–Hatta International Airport"</span> <span class="ot">=</span> <span class="st">"CGK"</span>,</span>
+<span id="cb5-34"><a href="#cb5-34" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Kuala Lumpur International Airport"</span> <span class="ot">=</span> <span class="st">"KUL"</span>,</span>
+<span id="cb5-35"><a href="#cb5-35" aria-hidden="true" tabindex="-1"></a>    <span class="st">"El Dorado International Airport"</span> <span class="ot">=</span> <span class="st">"BOG"</span>,</span>
+<span id="cb5-36"><a href="#cb5-36" aria-hidden="true" tabindex="-1"></a>    <span class="st">"São Paulo–Guarulhos International Airport"</span> <span class="ot">=</span> <span class="st">"GRU"</span>,</span>
+<span id="cb5-37"><a href="#cb5-37" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Jorge Chávez International Airport"</span> <span class="ot">=</span> <span class="st">"LIM"</span>,</span>
+<span id="cb5-38"><a href="#cb5-38" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Auckland Airport"</span> <span class="ot">=</span> <span class="st">"AKL"</span>,</span>
+<span id="cb5-39"><a href="#cb5-39" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Daniel K. Inouye International Airport"</span> <span class="ot">=</span> <span class="st">"HNL"</span></span>
+<span id="cb5-40"><a href="#cb5-40" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb5-41"><a href="#cb5-41" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-42"><a href="#cb5-42" aria-hidden="true" tabindex="-1"></a><span class="co"># Download airport coordinates. The source stores coordinates as longitude, latitude.</span></span>
+<span id="cb5-43"><a href="#cb5-43" aria-hidden="true" tabindex="-1"></a>airport_data <span class="ot">&lt;-</span> <span class="fu">read.csv</span>(</span>
+<span id="cb5-44"><a href="#cb5-44" aria-hidden="true" tabindex="-1"></a>    <span class="st">"https://raw.githubusercontent.com/datasets/airport-codes/master/data/airport-codes.csv"</span>,</span>
+<span id="cb5-45"><a href="#cb5-45" aria-hidden="true" tabindex="-1"></a>    <span class="at">stringsAsFactors =</span> <span class="cn">FALSE</span></span>
+<span id="cb5-46"><a href="#cb5-46" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb5-47"><a href="#cb5-47" aria-hidden="true" tabindex="-1"></a>airport_locations <span class="ot">&lt;-</span> airport_data[<span class="fu">match</span>(<span class="fu">unname</span>(hub_iata), airport_data<span class="sc">$</span>iata_code), ]</span>
+<span id="cb5-48"><a href="#cb5-48" aria-hidden="true" tabindex="-1"></a>airport_locations<span class="sc">$</span>hub <span class="ot">&lt;-</span> <span class="fu">names</span>(hub_iata)</span>
+<span id="cb5-49"><a href="#cb5-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-50"><a href="#cb5-50" aria-hidden="true" tabindex="-1"></a><span class="co"># Match airport coordinates to O-D pairs</span></span>
+<span id="cb5-51"><a href="#cb5-51" aria-hidden="true" tabindex="-1"></a>coordinates <span class="ot">&lt;-</span> <span class="fu">do.call</span>(</span>
+<span id="cb5-52"><a href="#cb5-52" aria-hidden="true" tabindex="-1"></a>    rbind,</span>
+<span id="cb5-53"><a href="#cb5-53" aria-hidden="true" tabindex="-1"></a>    <span class="fu">strsplit</span>(airport_locations<span class="sc">$</span>coordinates, <span class="st">", "</span>, <span class="at">fixed =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb5-54"><a href="#cb5-54" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb5-55"><a href="#cb5-55" aria-hidden="true" tabindex="-1"></a>airport_locations<span class="sc">$</span>longitude <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(coordinates[, <span class="dv">1</span>])</span>
+<span id="cb5-56"><a href="#cb5-56" aria-hidden="true" tabindex="-1"></a>airport_locations<span class="sc">$</span>latitude <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(coordinates[, <span class="dv">2</span>])</span>
+<span id="cb5-57"><a href="#cb5-57" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-58"><a href="#cb5-58" aria-hidden="true" tabindex="-1"></a><span class="co"># Calculate great-circle distance in kilometers using the Haversine formula.</span></span>
+<span id="cb5-59"><a href="#cb5-59" aria-hidden="true" tabindex="-1"></a>haversine_km <span class="ot">&lt;-</span> <span class="cf">function</span>(lon1, lat1, lon2, lat2) {</span>
+<span id="cb5-60"><a href="#cb5-60" aria-hidden="true" tabindex="-1"></a>    radians <span class="ot">&lt;-</span> pi <span class="sc">/</span> <span class="dv">180</span></span>
+<span id="cb5-61"><a href="#cb5-61" aria-hidden="true" tabindex="-1"></a>    delta_lon <span class="ot">&lt;-</span> (lon2 <span class="sc">-</span> lon1) <span class="sc">*</span> radians</span>
+<span id="cb5-62"><a href="#cb5-62" aria-hidden="true" tabindex="-1"></a>    delta_lat <span class="ot">&lt;-</span> (lat2 <span class="sc">-</span> lat1) <span class="sc">*</span> radians</span>
+<span id="cb5-63"><a href="#cb5-63" aria-hidden="true" tabindex="-1"></a>    a <span class="ot">&lt;-</span> <span class="fu">sin</span>(delta_lat <span class="sc">/</span> <span class="dv">2</span>)<span class="sc">^</span><span class="dv">2</span> <span class="sc">+</span></span>
+<span id="cb5-64"><a href="#cb5-64" aria-hidden="true" tabindex="-1"></a>        <span class="fu">cos</span>(lat1 <span class="sc">*</span> radians) <span class="sc">*</span> <span class="fu">cos</span>(lat2 <span class="sc">*</span> radians) <span class="sc">*</span> <span class="fu">sin</span>(delta_lon <span class="sc">/</span> <span class="dv">2</span>)<span class="sc">^</span><span class="dv">2</span></span>
+<span id="cb5-65"><a href="#cb5-65" aria-hidden="true" tabindex="-1"></a>    <span class="dv">6371</span> <span class="sc">*</span> <span class="dv">2</span> <span class="sc">*</span> <span class="fu">asin</span>(<span class="fu">sqrt</span>(a))</span>
+<span id="cb5-66"><a href="#cb5-66" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb5-67"><a href="#cb5-67" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-68"><a href="#cb5-68" aria-hidden="true" tabindex="-1"></a>origin_locations <span class="ot">&lt;-</span> airport_locations[<span class="fu">match</span>(od_pairs<span class="sc">$</span>origin, airport_locations<span class="sc">$</span>hub), ]</span>
+<span id="cb5-69"><a href="#cb5-69" aria-hidden="true" tabindex="-1"></a>destination_locations <span class="ot">&lt;-</span> airport_locations[<span class="fu">match</span>(od_pairs<span class="sc">$</span>destination, airport_locations<span class="sc">$</span>hub), ]</span>
+<span id="cb5-70"><a href="#cb5-70" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-71"><a href="#cb5-71" aria-hidden="true" tabindex="-1"></a><span class="co"># Calculate distance</span></span>
+<span id="cb5-72"><a href="#cb5-72" aria-hidden="true" tabindex="-1"></a>od_pairs<span class="sc">$</span>distance_km <span class="ot">&lt;-</span> <span class="fu">haversine_km</span>(</span>
+<span id="cb5-73"><a href="#cb5-73" aria-hidden="true" tabindex="-1"></a>    origin_locations<span class="sc">$</span>longitude,</span>
+<span id="cb5-74"><a href="#cb5-74" aria-hidden="true" tabindex="-1"></a>    origin_locations<span class="sc">$</span>latitude,</span>
+<span id="cb5-75"><a href="#cb5-75" aria-hidden="true" tabindex="-1"></a>    destination_locations<span class="sc">$</span>longitude,</span>
+<span id="cb5-76"><a href="#cb5-76" aria-hidden="true" tabindex="-1"></a>    destination_locations<span class="sc">$</span>latitude</span>
+<span id="cb5-77"><a href="#cb5-77" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Confirm the O-D pairings </span></span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">paste</span>(<span class="st">"Number of O-D pairs:"</span>, <span class="fu">nrow</span>(od_pairs)))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>[1] "Number of O-D pairs: 870"</code></pre>
+<pre><code>[1] "Number of O-D pairs: 1190"</code></pre>
 </div>
 <div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">head</span>(od_pairs))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>                           destination
-1 Adolfo Suárez Madrid–Barajas Airport
-2 Adolfo Suárez Madrid–Barajas Airport
-3 Adolfo Suárez Madrid–Barajas Airport
-4 Adolfo Suárez Madrid–Barajas Airport
-5 Adolfo Suárez Madrid–Barajas Airport
-6 Adolfo Suárez Madrid–Barajas Airport
-                                       origin origin_region destination_region
-1                        Tokyo Haneda Airport          Asia             Europe
-2                 São Paulo–Congonhas Airport South America             Europe
-3 Arturo Merino Benítez International Airport South America             Europe
-4              Hurghada International Airport        Africa             Europe
-5                            Brisbane Airport       Oceania             Europe
-6                Denver International Airport North America             Europe
-  pair_id distance_km
-1       1   15910.644
-2       2    7768.039
-3       3    9048.284
-4       4    4383.998
-5       5   12377.082
-6       6   11241.878</code></pre>
+<pre><code>                           destination                                 origin
+1 Adolfo Suárez Madrid–Barajas Airport    Indira Gandhi International Airport
+2 Adolfo Suárez Madrid–Barajas Airport  Shanghai Pudong International Airport
+3 Adolfo Suárez Madrid–Barajas Airport           O'Hare International Airport
+4 Adolfo Suárez Madrid–Barajas Airport             Bole International Airport
+5 Adolfo Suárez Madrid–Barajas Airport   King Abdulaziz International Airport
+6 Adolfo Suárez Madrid–Barajas Airport Daniel K. Inouye International Airport
+              origin_region destination_region pair_id distance_km
+1                South Asia             Europe       1    9000.922
+2 East Asia and the Pacific             Europe       2   13886.873
+3                  Americas             Europe       3    9377.430
+4                    Africa             Europe       4    5713.958
+5               Middle East             Europe       5    5127.718
+6                     Other             Europe       6   16482.411</code></pre>
 </div>
 </div>
 <p>For each O-D pairing, region, what is distance, first five flights, and the average airfare cost. NOTE BEFORE YOU RUN THIS: This has a long run time!</p>
@@ -837,13 +908,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a>)])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>  pair_id origin_iata destination_iata
-1       1         HND              MAD
-2       2         CGH              MAD
-3       3         SCL              MAD
+1       1         DEL              MAD
+2       2         PVG              MAD
+3       3         ORD              MAD
                                   search_instructions
-1 Search HND to MAD for 2026-09-11 through 2026-09-18
-2 Search CGH to MAD for 2026-09-11 through 2026-09-18
-3 Search SCL to MAD for 2026-09-11 through 2026-09-18</code></pre>
+1 Search DEL to MAD for 2026-09-11 through 2026-09-18
+2 Search PVG to MAD for 2026-09-11 through 2026-09-18
+3 Search ORD to MAD for 2026-09-11 through 2026-09-18</code></pre>
 </div>
 </div>
 </section>
@@ -856,48 +927,70 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="co"># oil_data_path &lt;- "F:\\GEP\\GEP_recreation\\data\\us_crude_oil_price_historic_quarters.xls"</span></span>
 <span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a><span class="co"># oil_data &lt;- rio::import(oil_data_path, sheet = 2)</span></span>
 <span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>oil_regional_path <span class="ot">&lt;-</span> <span class="st">"F:</span><span class="sc">\\</span><span class="st">GEP</span><span class="sc">\\</span><span class="st">GEP_recreation</span><span class="sc">\\</span><span class="st">data</span><span class="sc">\\</span><span class="st">crude_oil_historic_monthly_regional.xls"</span></span>
-<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>oil_regional_data <span class="ot">&lt;-</span> rio<span class="sc">::</span><span class="fu">import</span>(oil_regional_path, <span class="at">sheet =</span> <span class="dv">2</span>) </span>
-<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Keep the oil observation used for the airfare cross-section.</span></span>
-<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>oil_regional_data_merge <span class="ot">&lt;-</span> oil_regional_data[<span class="dv">500</span>, , drop <span class="ot">=</span> <span class="cn">FALSE</span>]</span>
-<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Assign each origin region to its oil-price series.</span></span>
-<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a>region_oil_map <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
-<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">origin_region =</span> <span class="fu">c</span>(</span>
-<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a>        <span class="st">"North America"</span>, <span class="st">"Europe"</span>, <span class="st">"Asia"</span>, <span class="st">"South America"</span>,</span>
-<span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Africa"</span>, <span class="st">"Oceania"</span></span>
-<span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a>    ),</span>
-<span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">oil_variable =</span> <span class="fu">c</span>(</span>
-<span id="cb14-16"><a href="#cb14-16" aria-hidden="true" tabindex="-1"></a>        <span class="st">"price_barrel_gen"</span>,       <span class="co"># North America: USA/general price</span></span>
-<span id="cb14-17"><a href="#cb14-17" aria-hidden="true" tabindex="-1"></a>        <span class="st">"price_barrel_opec"</span>,      <span class="co"># Europe: OPEC price</span></span>
-<span id="cb14-18"><a href="#cb14-18" aria-hidden="true" tabindex="-1"></a>        <span class="st">"price_barrel_persian_gulf"</span>, <span class="co"># Asia: Persian Gulf price</span></span>
-<span id="cb14-19"><a href="#cb14-19" aria-hidden="true" tabindex="-1"></a>        <span class="st">"price_barrel_non_opec"</span>,  <span class="co"># South America: non-OPEC price</span></span>
-<span id="cb14-20"><a href="#cb14-20" aria-hidden="true" tabindex="-1"></a>        <span class="st">"price_barrel_non_opec"</span>,  <span class="co"># Africa: non-OPEC price</span></span>
-<span id="cb14-21"><a href="#cb14-21" aria-hidden="true" tabindex="-1"></a>        <span class="st">"price_barrel_non_opec"</span>   <span class="co"># Oceania: non-OPEC price</span></span>
-<span id="cb14-22"><a href="#cb14-22" aria-hidden="true" tabindex="-1"></a>    ),</span>
-<span id="cb14-23"><a href="#cb14-23" aria-hidden="true" tabindex="-1"></a>    <span class="at">stringsAsFactors =</span> <span class="cn">FALSE</span></span>
-<span id="cb14-24"><a href="#cb14-24" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb14-25"><a href="#cb14-25" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-26"><a href="#cb14-26" aria-hidden="true" tabindex="-1"></a>airfare_data <span class="ot">&lt;-</span> <span class="fu">merge</span>(</span>
-<span id="cb14-27"><a href="#cb14-27" aria-hidden="true" tabindex="-1"></a>    od_pairs,</span>
-<span id="cb14-28"><a href="#cb14-28" aria-hidden="true" tabindex="-1"></a>    region_oil_map,</span>
-<span id="cb14-29"><a href="#cb14-29" aria-hidden="true" tabindex="-1"></a>    <span class="at">by =</span> <span class="st">"origin_region"</span>,</span>
-<span id="cb14-30"><a href="#cb14-30" aria-hidden="true" tabindex="-1"></a>    <span class="at">all.x =</span> <span class="cn">TRUE</span>,</span>
-<span id="cb14-31"><a href="#cb14-31" aria-hidden="true" tabindex="-1"></a>    <span class="at">sort =</span> <span class="cn">FALSE</span></span>
-<span id="cb14-32"><a href="#cb14-32" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb14-33"><a href="#cb14-33" aria-hidden="true" tabindex="-1"></a>airfare_data<span class="sc">$</span>oil_price <span class="ot">&lt;-</span> <span class="fu">mapply</span>(</span>
-<span id="cb14-34"><a href="#cb14-34" aria-hidden="true" tabindex="-1"></a>    <span class="cf">function</span>(variable) oil_regional_data_merge[[variable]][<span class="dv">1</span>],</span>
-<span id="cb14-35"><a href="#cb14-35" aria-hidden="true" tabindex="-1"></a>    airfare_data<span class="sc">$</span>oil_variable</span>
-<span id="cb14-36"><a href="#cb14-36" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb14-37"><a href="#cb14-37" aria-hidden="true" tabindex="-1"></a>airfare_data<span class="sc">$</span>oil_date <span class="ot">&lt;-</span> <span class="fu">as.Date</span>(oil_regional_data_merge<span class="sc">$</span>Date[<span class="dv">1</span>])</span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>oil_regional_data <span class="ot">&lt;-</span> rio<span class="sc">::</span><span class="fu">import</span>(oil_regional_path, <span class="at">sheet =</span> <span class="dv">2</span>)</span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Use the latest valid observation for each oil series so every airfare region</span></span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a><span class="co"># receives a numeric oil price rather than a missing value from a single row.</span></span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a>latest_oil_value <span class="ot">&lt;-</span> <span class="cf">function</span>(variable, data) {</span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a>    values <span class="ot">&lt;-</span> <span class="fu">suppressWarnings</span>(<span class="fu">as.numeric</span>(data[[variable]]))</span>
+<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a>    values <span class="ot">&lt;-</span> values[<span class="fu">is.finite</span>(values)]</span>
+<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> (<span class="fu">length</span>(values) <span class="sc">==</span> <span class="dv">0</span>) <span class="fu">return</span>(<span class="cn">NA_real_</span>)</span>
+<span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a>    values[<span class="fu">length</span>(values)]</span>
+<span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-16"><a href="#cb14-16" aria-hidden="true" tabindex="-1"></a><span class="co"># Assign each origin region to the oil-price benchmark it should use.</span></span>
+<span id="cb14-17"><a href="#cb14-17" aria-hidden="true" tabindex="-1"></a>region_oil_map <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb14-18"><a href="#cb14-18" aria-hidden="true" tabindex="-1"></a>    <span class="at">origin_region =</span> <span class="fu">c</span>(</span>
+<span id="cb14-19"><a href="#cb14-19" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Africa"</span>,</span>
+<span id="cb14-20"><a href="#cb14-20" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Americas"</span>,</span>
+<span id="cb14-21"><a href="#cb14-21" aria-hidden="true" tabindex="-1"></a>        <span class="st">"East Asia and the Pacific"</span>,</span>
+<span id="cb14-22"><a href="#cb14-22" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Europe"</span>,</span>
+<span id="cb14-23"><a href="#cb14-23" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Middle East"</span>,</span>
+<span id="cb14-24"><a href="#cb14-24" aria-hidden="true" tabindex="-1"></a>        <span class="st">"South Asia"</span>,</span>
+<span id="cb14-25"><a href="#cb14-25" aria-hidden="true" tabindex="-1"></a>        <span class="st">"Other"</span></span>
+<span id="cb14-26"><a href="#cb14-26" aria-hidden="true" tabindex="-1"></a>    ),</span>
+<span id="cb14-27"><a href="#cb14-27" aria-hidden="true" tabindex="-1"></a>    <span class="at">oil_variable =</span> <span class="fu">c</span>(</span>
+<span id="cb14-28"><a href="#cb14-28" aria-hidden="true" tabindex="-1"></a>        <span class="st">"price_barrel_non_opec"</span>,      <span class="co"># Africa: non-OPEC benchmark</span></span>
+<span id="cb14-29"><a href="#cb14-29" aria-hidden="true" tabindex="-1"></a>        <span class="st">"price_barrel_gen"</span>,           <span class="co"># Americas: general crude benchmark</span></span>
+<span id="cb14-30"><a href="#cb14-30" aria-hidden="true" tabindex="-1"></a>        <span class="st">"price_barrel_non_opec"</span>,      <span class="co"># East Asia and the Pacific: non-OPEC benchmark</span></span>
+<span id="cb14-31"><a href="#cb14-31" aria-hidden="true" tabindex="-1"></a>        <span class="st">"price_barrel_opec"</span>,          <span class="co"># Europe: OPEC benchmark</span></span>
+<span id="cb14-32"><a href="#cb14-32" aria-hidden="true" tabindex="-1"></a>        <span class="st">"price_barrel_persian_gulf"</span>,  <span class="co"># Middle East: Persian Gulf benchmark</span></span>
+<span id="cb14-33"><a href="#cb14-33" aria-hidden="true" tabindex="-1"></a>        <span class="st">"price_barrel_non_opec"</span>,      <span class="co"># South Asia: non-OPEC benchmark</span></span>
+<span id="cb14-34"><a href="#cb14-34" aria-hidden="true" tabindex="-1"></a>        <span class="st">"price_barrel_non_opec"</span>       <span class="co"># Other: non-OPEC benchmark</span></span>
+<span id="cb14-35"><a href="#cb14-35" aria-hidden="true" tabindex="-1"></a>    ),</span>
+<span id="cb14-36"><a href="#cb14-36" aria-hidden="true" tabindex="-1"></a>    <span class="at">stringsAsFactors =</span> <span class="cn">FALSE</span></span>
+<span id="cb14-37"><a href="#cb14-37" aria-hidden="true" tabindex="-1"></a>)</span>
 <span id="cb14-38"><a href="#cb14-38" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-39"><a href="#cb14-39" aria-hidden="true" tabindex="-1"></a><span class="co"># Merge the first-five-flight average into the O-D data by pair ID.</span></span>
-<span id="cb14-40"><a href="#cb14-40" aria-hidden="true" tabindex="-1"></a>airfare_data <span class="ot">&lt;-</span> <span class="fu">merge</span>(</span>
-<span id="cb14-41"><a href="#cb14-41" aria-hidden="true" tabindex="-1"></a>    airfare_data,</span>
-<span id="cb14-42"><a href="#cb14-42" aria-hidden="true" tabindex="-1"></a>    flight_searches[, <span class="fu">c</span>(<span class="st">"pair_id"</span>, <span class="st">"average_fare_usd"</span>)],</span>
-<span id="cb14-43"><a href="#cb14-43" aria-hidden="true" tabindex="-1"></a>    <span class="at">by =</span> <span class="st">"pair_id"</span>,</span>
-<span id="cb14-44"><a href="#cb14-44" aria-hidden="true" tabindex="-1"></a>    <span class="at">all.x =</span> <span class="cn">TRUE</span>,</span>
-<span id="cb14-45"><a href="#cb14-45" aria-hidden="true" tabindex="-1"></a>    <span class="at">sort =</span> <span class="cn">FALSE</span></span>
-<span id="cb14-46"><a href="#cb14-46" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb14-39"><a href="#cb14-39" aria-hidden="true" tabindex="-1"></a>airfare_data <span class="ot">&lt;-</span> <span class="fu">merge</span>(</span>
+<span id="cb14-40"><a href="#cb14-40" aria-hidden="true" tabindex="-1"></a>    od_pairs,</span>
+<span id="cb14-41"><a href="#cb14-41" aria-hidden="true" tabindex="-1"></a>    region_oil_map,</span>
+<span id="cb14-42"><a href="#cb14-42" aria-hidden="true" tabindex="-1"></a>    <span class="at">by =</span> <span class="st">"origin_region"</span>,</span>
+<span id="cb14-43"><a href="#cb14-43" aria-hidden="true" tabindex="-1"></a>    <span class="at">all.x =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb14-44"><a href="#cb14-44" aria-hidden="true" tabindex="-1"></a>    <span class="at">sort =</span> <span class="cn">FALSE</span></span>
+<span id="cb14-45"><a href="#cb14-45" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb14-46"><a href="#cb14-46" aria-hidden="true" tabindex="-1"></a>airfare_data<span class="sc">$</span>oil_price <span class="ot">&lt;-</span> <span class="fu">vapply</span>(</span>
+<span id="cb14-47"><a href="#cb14-47" aria-hidden="true" tabindex="-1"></a>    airfare_data<span class="sc">$</span>oil_variable,</span>
+<span id="cb14-48"><a href="#cb14-48" aria-hidden="true" tabindex="-1"></a>    <span class="cf">function</span>(variable) {</span>
+<span id="cb14-49"><a href="#cb14-49" aria-hidden="true" tabindex="-1"></a>        <span class="fu">latest_oil_value</span>(variable, oil_regional_data)</span>
+<span id="cb14-50"><a href="#cb14-50" aria-hidden="true" tabindex="-1"></a>    },</span>
+<span id="cb14-51"><a href="#cb14-51" aria-hidden="true" tabindex="-1"></a>    <span class="fu">numeric</span>(<span class="dv">1</span>)</span>
+<span id="cb14-52"><a href="#cb14-52" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb14-53"><a href="#cb14-53" aria-hidden="true" tabindex="-1"></a>airfare_data<span class="sc">$</span>oil_price <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(airfare_data<span class="sc">$</span>oil_price)</span>
+<span id="cb14-54"><a href="#cb14-54" aria-hidden="true" tabindex="-1"></a>airfare_data<span class="sc">$</span>oil_date <span class="ot">&lt;-</span> <span class="fu">as.Date</span>(<span class="fu">max</span>(oil_regional_data<span class="sc">$</span>Date, <span class="at">na.rm =</span> <span class="cn">TRUE</span>))</span>
+<span id="cb14-55"><a href="#cb14-55" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-56"><a href="#cb14-56" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="fu">any</span>(<span class="fu">is.na</span>(airfare_data<span class="sc">$</span>oil_price))) {</span>
+<span id="cb14-57"><a href="#cb14-57" aria-hidden="true" tabindex="-1"></a>    missing_regions <span class="ot">&lt;-</span> <span class="fu">unique</span>(airfare_data<span class="sc">$</span>origin_region[<span class="fu">is.na</span>(airfare_data<span class="sc">$</span>oil_price)])</span>
+<span id="cb14-58"><a href="#cb14-58" aria-hidden="true" tabindex="-1"></a>    <span class="fu">stop</span>(<span class="st">"Missing oil price for regions: "</span>, <span class="fu">paste</span>(missing_regions, <span class="at">collapse =</span> <span class="st">", "</span>))</span>
+<span id="cb14-59"><a href="#cb14-59" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb14-60"><a href="#cb14-60" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-61"><a href="#cb14-61" aria-hidden="true" tabindex="-1"></a><span class="co"># Merge the first-five-flight average into the O-D data by pair ID.</span></span>
+<span id="cb14-62"><a href="#cb14-62" aria-hidden="true" tabindex="-1"></a>airfare_data <span class="ot">&lt;-</span> <span class="fu">merge</span>(</span>
+<span id="cb14-63"><a href="#cb14-63" aria-hidden="true" tabindex="-1"></a>    airfare_data,</span>
+<span id="cb14-64"><a href="#cb14-64" aria-hidden="true" tabindex="-1"></a>    flight_searches[, <span class="fu">c</span>(<span class="st">"pair_id"</span>, <span class="st">"average_fare_usd"</span>)],</span>
+<span id="cb14-65"><a href="#cb14-65" aria-hidden="true" tabindex="-1"></a>    <span class="at">by =</span> <span class="st">"pair_id"</span>,</span>
+<span id="cb14-66"><a href="#cb14-66" aria-hidden="true" tabindex="-1"></a>    <span class="at">all.x =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb14-67"><a href="#cb14-67" aria-hidden="true" tabindex="-1"></a>    <span class="at">sort =</span> <span class="cn">FALSE</span></span>
+<span id="cb14-68"><a href="#cb14-68" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -925,15 +1018,16 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a>        <span class="at">average_oil_price_usd =</span> <span class="fu">mean</span>(oil_price, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)</span>
 <span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a>    )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code># A tibble: 6 × 4
-  origin_region average_fare_usd average_distance_km average_oil_price_usd
-  &lt;chr&gt;                    &lt;dbl&gt;               &lt;dbl&gt;                 &lt;dbl&gt;
-1 Africa                   1288.               9200.                  88.2
-2 Asia                     1207.              10878.                 100. 
-3 Europe                   1011.               8550.                  97.2
-4 North America            1096.               9977.                  91.5
-5 Oceania                  1493.              10680.                  88.2
-6 South America            1716.               9621.                  88.2</code></pre>
+<pre><code># A tibble: 7 × 4
+  origin_region       average_fare_usd average_distance_km average_oil_price_usd
+  &lt;chr&gt;                          &lt;dbl&gt;               &lt;dbl&gt;                 &lt;dbl&gt;
+1 Africa                         1094.               8222.                  81.8
+2 Americas                       1078.              11881.                  81.5
+3 East Asia and the …            1069.               9782.                  81.8
+4 Europe                          884.               8187.                  78.9
+5 Middle East                     893.               7837.                  88.2
+6 Other                          1640.              11352.                  81.8
+7 South Asia                      902.               9010.                  81.8</code></pre>
 </div>
 </div>
 <div class="cell">
@@ -948,21 +1042,21 @@ Call:
 lm(formula = average_fare_usd ~ oil_price + distance_km, data = airfare_data)
 
 Residuals:
-     Min       1Q   Median       3Q      Max 
--1298.93  -269.21   -36.31   224.40  2665.05 
+    Min      1Q  Median      3Q     Max 
+-972.63 -211.90  -67.19  200.28 1188.87 
 
 Coefficients:
               Estimate Std. Error t value Pr(&gt;|t|)    
-(Intercept)  3.479e+03  2.841e+02   12.25   &lt;2e-16 ***
-oil_price   -3.359e+01  3.063e+00  -10.97   &lt;2e-16 ***
-distance_km  9.345e-02  2.999e-03   31.16   &lt;2e-16 ***
+(Intercept) 386.522157 320.479007   1.206    0.228    
+oil_price    -0.768905   3.870048  -0.199    0.843    
+distance_km   0.079854   0.001932  41.323   &lt;2e-16 ***
 ---
 Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 
-Residual standard error: 428.2 on 865 degrees of freedom
+Residual standard error: 347.3 on 1185 degrees of freedom
   (2 observations deleted due to missingness)
-Multiple R-squared:  0.5566,    Adjusted R-squared:  0.5556 
-F-statistic:   543 on 2 and 865 DF,  p-value: &lt; 2.2e-16</code></pre>
+Multiple R-squared:  0.592, Adjusted R-squared:  0.5913 
+F-statistic: 859.6 on 2 and 1185 DF,  p-value: &lt; 2.2e-16</code></pre>
 </div>
 <div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="co"># feols(average_fare_usd ~ oil_price + distance_km | origin_region, data = airfare_data, vcov = "hc3")</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
@@ -1053,38 +1147,45 @@ F-statistic:   543 on 2 and 865 DF,  p-value: &lt; 2.2e-16</code></pre>
 <span id="cb23-74"><a href="#cb23-74" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb23-75"><a href="#cb23-75" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">dim</span>(airfare_panel))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>[1] 558540     16</code></pre>
+<pre><code>[1] 763980     16</code></pre>
 </div>
 <div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">head</span>(airfare_panel))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>  pair_id               origin                          destination
-1       1 Tokyo Haneda Airport Adolfo Suárez Madrid–Barajas Airport
-2       1 Tokyo Haneda Airport Adolfo Suárez Madrid–Barajas Airport
-3       1 Tokyo Haneda Airport Adolfo Suárez Madrid–Barajas Airport
-4       1 Tokyo Haneda Airport Adolfo Suárez Madrid–Barajas Airport
-5       1 Tokyo Haneda Airport Adolfo Suárez Madrid–Barajas Airport
-6       1 Tokyo Haneda Airport Adolfo Suárez Madrid–Barajas Airport
-  origin_region destination_region distance_km       Date year month month_year
-1          Asia             Europe    15910.64 1973-01-15 1973     1    1973-01
-2          Asia             Europe    15910.64 2016-02-15 2016     2    2016-02
-3          Asia             Europe    15910.64 1995-11-15 1995    11    1995-11
-4          Asia             Europe    15910.64 1981-11-15 1981    11    1981-11
-5          Asia             Europe    15910.64 1993-04-15 1993     4    1993-04
-6          Asia             Europe    15910.64 2004-09-15 2004     9    2004-09
-               oil_variable oil_price average_fare_usd oil_to_airfare_ratio
-1 price_barrel_persian_gulf        NA           1121.2           0.08917232
-2 price_barrel_persian_gulf     30.91           1121.2           0.08917232
-3 price_barrel_persian_gulf        NA           1121.2           0.08917232
-4 price_barrel_persian_gulf        NA           1121.2           0.08917232
-5 price_barrel_persian_gulf        NA           1121.2           0.08917232
-6 price_barrel_persian_gulf     42.30           1121.2           0.08917232
-  predicted_fare_usd predicted_fare_ratio_usd
-1                 NA                       NA
-2           3927.243                 346.6322
-3                 NA                       NA
-4                 NA                       NA
-5                 NA                       NA
-6           3544.612                 474.3625</code></pre>
+<pre><code>  pair_id                              origin
+1       1 Indira Gandhi International Airport
+2       1 Indira Gandhi International Airport
+3       1 Indira Gandhi International Airport
+4       1 Indira Gandhi International Airport
+5       1 Indira Gandhi International Airport
+6       1 Indira Gandhi International Airport
+                           destination origin_region destination_region
+1 Adolfo Suárez Madrid–Barajas Airport    South Asia             Europe
+2 Adolfo Suárez Madrid–Barajas Airport    South Asia             Europe
+3 Adolfo Suárez Madrid–Barajas Airport    South Asia             Europe
+4 Adolfo Suárez Madrid–Barajas Airport    South Asia             Europe
+5 Adolfo Suárez Madrid–Barajas Airport    South Asia             Europe
+6 Adolfo Suárez Madrid–Barajas Airport    South Asia             Europe
+  distance_km       Date year month month_year          oil_variable oil_price
+1    9000.922 1973-01-15 1973     1    1973-01 price_barrel_non_opec        NA
+2    9000.922 2011-02-15 2011     2    2011-02 price_barrel_non_opec     89.00
+3    9000.922 1975-11-15 1975    11    1975-11 price_barrel_non_opec     13.76
+4    9000.922 1981-07-15 1981     7    1981-07 price_barrel_non_opec     35.96
+5    9000.922 1978-09-15 1978     9    1978-09 price_barrel_non_opec     14.21
+6    9000.922 1984-05-15 1984     5    1984-05 price_barrel_non_opec     28.59
+  average_fare_usd oil_to_airfare_ratio predicted_fare_usd
+1            731.2            0.1118982                 NA
+2            731.2            0.1118982           1036.850
+3            731.2            0.1118982           1094.702
+4            731.2            0.1118982           1077.633
+5            731.2            0.1118982           1094.356
+6            731.2            0.1118982           1083.300
+  predicted_fare_ratio_usd
+1                       NA
+2                 795.3654
+3                 122.9689
+4                 321.3634
+5                 126.9904
+6                 255.5000</code></pre>
 </div>
 </div>
 </section>
@@ -1225,81 +1326,111 @@ F-statistic:   543 on 2 and 865 DF,  p-value: &lt; 2.2e-16</code></pre>
 <span id="cb29-13"><a href="#cb29-13" aria-hidden="true" tabindex="-1"></a>airfare_2019 <span class="ot">&lt;-</span> <span class="fu">subset</span>(airfare_agg, year <span class="sc">==</span> <span class="dv">2019</span>)</span>
 <span id="cb29-14"><a href="#cb29-14" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(airfare_2019)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>     origin_region destination_region year average_fare_usd predicted_fare_usd
-1519        Africa             Africa 2019         734.4200           2024.363
-1520          Asia             Africa 2019         984.3040           2138.460
-1521        Europe             Africa 2019         594.1440           1764.689
-1522 North America             Africa 2019        1346.6080           2846.327
-1523       Oceania             Africa 2019        1769.6000           2870.267
-1524 South America             Africa 2019        2074.4640           2627.656
-1525        Africa               Asia 2019        1034.4800           2435.372
-1526          Asia               Asia 2019         609.9700           1795.665
-1527        Europe               Asia 2019         876.0000           2323.543
-1528 North America               Asia 2019        1216.8880           3098.945
-1529       Oceania               Asia 2019        1118.8080           2407.101
-1530 South America               Asia 2019        2367.3440           3134.147
-1531        Africa             Europe 2019         613.6800           2074.310
-1532          Asia             Europe 2019         877.4800           2336.252
-1533        Europe             Europe 2019         337.5800           1510.349
-1534 North America             Europe 2019        1149.5920           2666.142
-1535       Oceania             Europe 2019        1473.0400           2749.011
-1536 South America             Europe 2019        1576.5840           2542.458
-1537        Africa      North America 2019        1431.9120           2915.306
-1538          Asia      North America 2019        1276.9120           2871.012
-1539        Europe      North America 2019        1146.3600           2425.500
-1540 North America      North America 2019         356.9300           1754.892
-1541       Oceania      North America 2019        1375.9920           2689.748
-1542 South America      North America 2019        1051.2320           1996.149
-1543        Africa            Oceania 2019        1872.5840           2870.267
-1544          Asia            Oceania 2019        1103.7600           2110.190
-1545        Europe            Oceania 2019        1534.3120           2439.390
-1546 North America            Oceania 2019        1414.6240           2620.769
-1547       Oceania            Oceania 2019         802.6100           2050.077
-1548 South America            Oceania 2019        2340.3440           2988.310
-1549        Africa      South America 2019        1931.8640           2627.656
-1550          Asia      South America 2019        2268.2640           2837.235
-1551        Europe      South America 2019        1442.6240           2232.837
-1552 North America      South America 2019         942.9280           1927.170
-1553       Oceania      South America 2019        2280.9440           2988.310
-1554 South America      South America 2019         567.0222           1874.997
-     predicted_fare_ratio_usd
-1519                 454.1490
-1520                 623.6649
-1521                 389.5752
-1522                 832.1713
-1523                1094.2813
-1524                1282.8024
-1525                 639.6994
-1526                 386.4831
-1527                 574.3858
-1528                 752.0074
-1529                 691.8460
-1530                1463.9129
-1531                 379.4861
-1532                 555.9802
-1533                 221.3484
-1534                 710.4201
-1535                 910.8952
-1536                 974.9245
-1537                 885.4625
-1538                 809.0643
-1539                 751.6586
-1540                 220.5741
-1541                 850.8829
-1542                 650.0585
-1543                1157.9643
-1544                 699.3534
-1545                1006.0355
-1546                 874.2035
-1547                 496.3162
-1548                1447.2167
-1549                1194.6217
-1550                1437.1949
-1551                 945.9164
-1552                 582.7068
-1553                1410.4851
-1554                 350.6339</code></pre>
+<pre><code>                 origin_region        destination_region year average_fare_usd
+2094                    Africa                    Africa 2019         738.8900
+2095                  Americas                    Africa 2019        1368.8400
+2096 East Asia and the Pacific                    Africa 2019        1268.1360
+2097                    Europe                    Africa 2019         634.8800
+2098               Middle East                    Africa 2019         530.4320
+2099                     Other                    Africa 2019        1960.6560
+2100                South Asia                    Africa 2019         960.4320
+2101                    Africa                  Americas 2019        1449.5200
+2102                  Americas                  Americas 2019         352.6800
+2103 East Asia and the Pacific                  Americas 2019        1356.0560
+2104                    Europe                  Americas 2019        1176.2480
+2105               Middle East                  Americas 2019        1299.0400
+2106                     Other                  Americas 2019        1028.8480
+2107                South Asia                  Americas 2019        1227.7680
+2108                    Africa East Asia and the Pacific 2019        1384.5840
+2109                  Americas East Asia and the Pacific 2019        1328.0000
+2110 East Asia and the Pacific East Asia and the Pacific 2019         592.4200
+2111                    Europe East Asia and the Pacific 2019        1104.8160
+2112               Middle East East Asia and the Pacific 2019        1006.3680
+2113                     Other East Asia and the Pacific 2019        1828.8000
+2114                South Asia East Asia and the Pacific 2019         518.5360
+2115                    Africa                    Europe 2019         635.9120
+2116                  Americas                    Europe 2019        1152.1040
+2117 East Asia and the Pacific                    Europe 2019        1074.5920
+2118                    Europe                    Europe 2019         356.6600
+2119               Middle East                    Europe 2019         528.2250
+2120                     Other                    Europe 2019        1561.1040
+2121                South Asia                    Europe 2019         801.6560
+2122                    Africa               Middle East 2019         553.8160
+2123                  Americas               Middle East 2019        1174.0800
+2124 East Asia and the Pacific               Middle East 2019         979.5920
+2125                    Europe               Middle East 2019         509.7833
+2126               Middle East               Middle East 2019         290.6800
+2127                     Other               Middle East 2019        1897.4720
+2128                South Asia               Middle East 2019         687.0080
+2129                    Africa                     Other 2019        1873.2240
+2130                  Americas                     Other 2019         876.2880
+2131 East Asia and the Pacific                     Other 2019        1680.8080
+2132                    Europe                     Other 2019        1515.0880
+2133               Middle East                     Other 2019        1858.3680
+2134                     Other                     Other 2019        1441.6000
+2135                South Asia                     Other 2019        1694.4240
+2136                    Africa                South Asia 2019         953.1520
+2137                  Americas                South Asia 2019        1152.2240
+2138 East Asia and the Pacific                South Asia 2019         439.2240
+2139                    Europe                South Asia 2019         773.4320
+2140               Middle East                South Asia 2019         603.9760
+2141                     Other                South Asia 2019        1719.5360
+2142                South Asia                South Asia 2019         302.7100
+     predicted_fare_usd predicted_fare_ratio_usd
+2094           666.5946                 492.2622
+2095          1426.3180                 950.1307
+2096          1204.2120                 844.8557
+2097           702.1867                 512.6557
+2098           599.5343                 380.9317
+2099          1339.8109                1306.2254
+2100           987.0607                 639.8576
+2101          1427.8968                 965.6971
+2102           493.6968                 244.8001
+2103          1534.0089                 903.4296
+2104          1266.8433                 949.8019
+2105          1604.0705                 932.9103
+2106           781.4689                 685.4376
+2107          1770.3092                 817.9618
+2108          1204.2120                 922.4355
+2109          1532.4301                 921.7831
+2110           620.5205                 394.6812
+2111          1323.7149                 892.1217
+2112          1047.3784                 722.7269
+2113          1399.6537                1218.3804
+2114           635.5703                 345.4583
+2115           709.2734                 423.6564
+2116          1272.3513                 799.6913
+2117          1330.8016                 715.9131
+2118           484.8556                 287.9974
+2119           725.8417                 379.3467
+2120          1232.5071                1040.0364
+2121          1131.3408                 534.0781
+2122           606.3301                 368.9625
+2123          1609.2875                 814.9451
+2124          1054.1742                 652.6223
+2125           725.5508                 411.6421
+2126           469.1023                 208.7529
+2127          1417.2186                1264.1310
+2128           811.9848                 457.6975
+2129          1339.8109                1247.9765
+2130           779.8900                 608.2436
+2131          1399.6537                1119.7854
+2132          1225.4203                1223.4099
+2133          1410.4228                1334.5938
+2134          1004.2161                 960.4206
+2135          1533.7670                1128.8567
+2136           987.0607                 635.0075
+2137          1768.7304                 799.7746
+2138           635.5703                 292.6192
+2139          1124.2541                 624.5343
+2140           805.1890                 433.7476
+2141          1533.7670                1145.5867
+2142           457.1555                 201.6710</code></pre>
 </div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb31"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Export the 2019 aggregated airfare data to a CSV file.</span></span>
+<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a><span class="fu">write.csv</span>(airfare_2019, <span class="st">"F:</span><span class="sc">\\</span><span class="st">GEP</span><span class="sc">\\</span><span class="st">GEP_recreation</span><span class="sc">\\</span><span class="st">data</span><span class="sc">\\</span><span class="st">airfare_2019.csv"</span>, <span class="at">row.names =</span> <span class="cn">FALSE</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 <section id="air-travel-data-sources" class="level1">
