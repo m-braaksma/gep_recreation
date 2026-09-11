@@ -79,7 +79,7 @@ flowchart LR
     %% ─────────────────────────────
     subgraph S1["01  RECREATION OPPORTUNITY"]
         direction TB
-
+        
         LULC["Land Cover<br/>+ Protected Areas"] --> ENV["Environmental<br/>Index"]
         ROADS["Road Density<br/>+ Urban Share"] --> ACC["Accessibility<br/>Index"]
 
@@ -323,6 +323,20 @@ UNWTO reporting of the "Overnights" indicator is inconsistent across countries a
 
 Recreation from lodging visits are estimated using the same distance-banded conserved allocation framework described above, with overnight stay data used as the population proxy in place of residential population. Visits and value are calculated identically, with the fuel cost applied at each visitor's lodging-location country rather than a residential origin. These estimates capture only the value represented by local travel costs and do not capture international travel or other expenditures that may be related to nature-based tourism.
 
+### Accommodation Value
+
+In addition to the local ground-travel cost above, we separately value the accommodation expenditure associated with nature-based tourism: `accommodation_value` $= \text{overnights} \times \text{hotel price per person per night}$, computed pixel-by-pixel and summed to the country level. This is an *additive* value component, capturing the cost of staying somewhere rather than the cost of local travel once there, and it is reported as its own column rather than merged into `tourist_value`.
+
+Hotel prices come from a gap-filled global price surface [@GlobalHotelPriceGrid2026] built from hotel booking API rate quotes, aggregated to a 0.5° grid (mean price per person per night, computed so that a hotel with many rate quotes does not outweigh a hotel with few), then filled where the source grid is sparse (8.3% of land cells observed directly) using, in order of precedence: ordinary kriging on log-transformed prices (Matérn variogram, moving 64-observation neighborhood within 2,000 km), nearest observed pixel within 500 km, and the country mean, raising land coverage to 73.7%. We use the mean-price variant because it is the variable whose sum over pixels equals total accommodation expenditure; the alternative median-price variant is more robust to the small number of extreme-luxury hotel prices in the underlying data but does not have this summing property. Remaining ungapfilled cells (chiefly Greenland, the Sahara, interior Central Asia, and Antarctica) are coded as missing (not zero, i.e., not "free") in the source data, and we preserve that distinction: a pixel with overnight stays but no price estimate contributes an unknown, rather than zero, accommodation value. In practice this affects almost no pixels that matter for this calculation - only 1 of 143,340 pixels with allocated overnight stays fell in a cell with no price estimate, because both hotel-derived inputs (the accommodation points used to allocate overnights, and the booking rate quotes used to build the price surface) are anchored to the same underlying fact of where real hotels exist, and both are therefore largely absent from the same unpopulated areas.
+
+### Air Travel Value
+
+A third additive component values the cost of reaching the destination country by air, separate from both the local ground-travel value above and accommodation value: `air_travel_value` $= \sum_{r} \text{arrivals}_r \times \text{fare}_{r \to R}$, summed over origin regions $r$, where $R$ is the destination country's own region and arrivals are visitor counts reported by UNWTO's Arrivals-by-region-of-origin indicator [@UNWTO2023] rather than the Overnights indicator used elsewhere in this document (Overnights and Arrivals are reported separately by UNWTO and are not always available for the same country-year, so this component's data coverage is independent of the ground-travel and accommodation components' coverage).
+
+Both origin and destination regions are drawn from a 7-region classification (Africa, Americas, East Asia and the Pacific, Europe, Middle East, South Asia, and a residual "Other" not used for pricing here) matching how UNWTO itself reports Arrivals-by-region; each country's own region assignment is a specific point of possible ambiguity, since a handful of countries split inconsistently between conventional continental grouping and UNWTO's tourism-specific classification (Egypt and Libya are UNWTO Middle East rather than Africa; Turkey, Cyprus, and the Caucasus states are UNWTO Europe rather than Middle East or Asia). We built and use a country-to-region crosswalk that follows UNWTO's classification specifically for this reason, rather than a general-purpose continental scheme.
+
+The region-pair fare matrix ($\text{fare}_{r \to R}$) constructs round-trip fares directly from a live flight-search API across 18 hub airports (3 per region, chosen for sub-regional geographic spread and consistent with the crosswalk above), the 5 cheapest quotes for each of the 306 ordered hub-pairs are averaged, and hub-pairs are averaged up to the region-pair level [@flightlist_2026]. Because this reflects current fares rather than 2019 fares, each fare is deflated using the ratio of the 2019 average to the current-month value of the U.S. Producer Price Index for kerosene-type jet fuel [@BLSJetFuelPPI], a single consistent monthly series rather than a set of region-specific benchmarks. The residual "Other" region is not priced: it is a near-empty bucket in UNWTO's own classification, and the arrivals attributed to it are tracked but contribute no value.
+
 ## Variables and Datasets
 
 | Variable | Dataset | Source | Resolution |
@@ -333,7 +347,11 @@ Recreation from lodging visits are estimated using the same distance-banded cons
 | Population | WorldPop Constrained Population | [@WorldPopUnconstrainedGlobalMosaics2000_2020] | 1km |
 | Tourism Statistics | Annual Overnight Stays | [@UNWTO2023] | Country-level |
 | Accommodation Points | Delta Check Hotel Database | [@DeltaCheck2023] | Point locations |
+| Hotel Prices | Global Hotel Price Grid (gap-filled) | [@GlobalHotelPriceGrid2026] | 0.5° |
 | Fuel Costs | Country Fuel Price Data | [@GlobalPetrolPrices2025; @IEA2020FuelPrices; @IEA2021GFEI] | Country-level |
+| International Arrivals | Annual Arrivals by Region of Origin | [@UNWTO2023] | Country-level |
+| Flight Prices | Flight Price Data | [@flightlist_2026] | Live, scraped |
+| Jet Fuel Prices | Producer Price Index, Kerosene-Type Jet Fuel | [@BLSJetFuelPPI] | National (US), monthly |
 | Demand Parameters | Participation and distance-decay parameters by group | [@PaNSEngland; @TalalGruntman2023; @Tu2020126689] | Single global group (all countries) |
 
 : Key Variables and Datasets {#tbl-datasets}
@@ -369,6 +387,7 @@ The current model also assumes participation is driven purely by distance decay 
 
 What is missing is not distance or cost variation, both of which are genuine here (real geography, real fuel prices), but an *independently observed* visitation outcome to pair with them, at more than a single national mean per study. The three surveys used for calibration (@sec-parameters) only provide national marginal distributions: one distance histogram and one frequency histogram per country, not linked to each other or to any finer geography. Zonal level microdata, could in principle support a genuine zone-level regression of the kind JRC's MENE-based calibration used [@Vallecillo2019196]. Aggregated mobile-location visitation data (of the kind sold commercially by providers such as SafeGraph, Veraset, or Placer.ai, or Google's Popular Times/Places data) is sometimes proposed as a global-scale alternative, but is not presently a viable substitute: commercial panels of this kind are licensed at substantial cost and are concentrated in the United States and a small number of wealthy markets rather than covering the 250 countries this model targets, while freely available aggregated mobility products (e.g., Meta's Data for Good movement maps) report only coarse admin-region-to-region flows, not visitation linked to a specific site's distance. Country- or region-specific expansion of the parameter table therefore remains gated on finding genuinely independent, geographically-resolved visitation data, not on further processing of data already in hand.
 
+
 # Results
 
 ```{python}
@@ -382,6 +401,26 @@ from matplotlib.ticker import FuncFormatter
 import pandas as pd
 from IPython.display import Markdown
 from tabulate import tabulate
+
+def format_abbreviated(x):
+    """Adaptive K/M/B/T abbreviation, e.g. 742,300 -> '742.3K', 6.8e9 -> '6.8B'.
+    Used for both map colorbars and the country results table so magnitudes
+    spanning thousands to hundreds of billions stay comparably legible,
+    rather than a single fixed unit (e.g. millions) leaving small countries
+    as indistinguishable 0.0s."""
+    if pd.isna(x):
+        return ''
+    sign = '-' if x < 0 else ''
+    abs_x = abs(x)
+    if abs_x >= 1e12:
+        return f"{sign}{abs_x / 1e12:.1f}T"
+    if abs_x >= 1e9:
+        return f"{sign}{abs_x / 1e9:.1f}B"
+    if abs_x >= 1e6:
+        return f"{sign}{abs_x / 1e6:.1f}M"
+    if abs_x >= 1e3:
+        return f"{sign}{abs_x / 1e3:.1f}K"
+    return f"{sign}{abs_x:.0f}"
 ```
 
 ```{python}
@@ -404,6 +443,9 @@ gdf = gdf.rename(columns={
 })
 
 # Calculate combined totals
+# (accommodation_value and air_travel_value are reported separately, not
+# folded into total_value -- see Recreation from Lodging Analysis >
+# Accommodation Value / Air Travel Value)
 gdf['total_visits'] = gdf['home_visits'] + gdf['lodging_visits']
 gdf['total_value'] = gdf['home_value'] + gdf['lodging_value']
 ```
@@ -417,12 +459,12 @@ gdf['total_value'] = gdf['home_value'] + gdf['lodging_value']
 #| label: fig-home-visits
 
 def format_cbar_with_commas(ax):
-    """Format colorbar with comma separators"""
+    """Format colorbar with adaptive K/M/B/T abbreviations"""
     cbar = ax.get_figure().axes[-1]
-    cbar.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{int(x):,}"))
+    cbar.yaxis.set_major_formatter(FuncFormatter(lambda x, _: format_abbreviated(x)))
 
 # Recreation from Home Visits
-fig, ax = plt.subplots(1, 1, figsize=(14, 7))
+fig, ax = plt.subplots(1, 1, figsize=(8, 4))
 gdf.plot(column="home_visits", ax=ax, legend=True, cmap="Blues", 
          edgecolor='none', legend_kwds={'shrink': 0.5})
 ax.set_title("Global Recreation from Home Visits", fontsize=16, fontweight='bold')
@@ -438,7 +480,7 @@ plt.show()
 #| fig-cap: "Global Recreation from Home Value (USD)"
 #| label: fig-home-value
 
-fig, ax = plt.subplots(1, 1, figsize=(14, 7))
+fig, ax = plt.subplots(1, 1, figsize=(8, 4))
 gdf.plot(column="home_value", ax=ax, legend=True, cmap="Greens", 
          edgecolor='none', legend_kwds={'shrink': 0.5})
 ax.set_title("Global Recreation from Home Value (USD)", fontsize=16, fontweight='bold')
@@ -454,7 +496,7 @@ plt.show()
 #| fig-cap: "Global Recreation from Lodging Visits"
 #| label: fig-lodging-visits
 
-fig, ax = plt.subplots(1, 1, figsize=(14, 7))
+fig, ax = plt.subplots(1, 1, figsize=(8, 4))
 gdf.plot(column="lodging_visits", ax=ax, legend=True, cmap="Blues", 
          edgecolor='none', legend_kwds={'shrink': 0.5})
 ax.set_title("Global Recreation from Lodging Visits", fontsize=16, fontweight='bold')
@@ -470,7 +512,7 @@ plt.show()
 #| fig-cap: "Global Recreation from Lodging Value (USD)"
 #| label: fig-lodging-value
 
-fig, ax = plt.subplots(1, 1, figsize=(14, 7))
+fig, ax = plt.subplots(1, 1, figsize=(8, 4))
 gdf.plot(column="lodging_value", ax=ax, legend=True, cmap="Greens", 
          edgecolor='none', legend_kwds={'shrink': 0.5})
 ax.set_title("Global Recreation from Lodging Value (USD)", fontsize=16, fontweight='bold')
@@ -483,10 +525,42 @@ plt.show()
 ```{python}
 #| echo: false
 #| warning: false
+#| fig-cap: "Global Accommodation Value (USD)"
+#| label: fig-accommodation-value
+
+fig, ax = plt.subplots(1, 1, figsize=(8, 4))
+gdf.plot(column="accommodation_value", ax=ax, legend=True, cmap="Greens",
+         edgecolor='none', legend_kwds={'shrink': 0.5})
+ax.set_title("Global Accommodation Value (USD)", fontsize=16, fontweight='bold')
+ax.set_axis_off()
+format_cbar_with_commas(ax)
+plt.tight_layout()
+plt.show()
+```
+
+```{python}
+#| echo: false
+#| warning: false
+#| fig-cap: "Global Air Travel Value (USD)"
+#| label: fig-air-travel-value
+
+fig, ax = plt.subplots(1, 1, figsize=(8, 4))
+gdf.plot(column="air_travel_value", ax=ax, legend=True, cmap="Greens",
+         edgecolor='none', legend_kwds={'shrink': 0.5})
+ax.set_title("Global Air Travel Value (USD)", fontsize=16, fontweight='bold')
+ax.set_axis_off()
+format_cbar_with_commas(ax)
+plt.tight_layout()
+plt.show()
+```
+
+```{python}
+#| echo: false
+#| warning: false
 #| fig-cap: "Global Combined Recreation Visits"
 #| label: fig-total-visits
 
-fig, ax = plt.subplots(1, 1, figsize=(14, 7))
+fig, ax = plt.subplots(1, 1, figsize=(8, 4))
 gdf.plot(column="total_visits", ax=ax, legend=True, cmap="Blues", 
          edgecolor='none', legend_kwds={'shrink': 0.5})
 ax.set_title("Global Combined Recreation Visits", fontsize=16, fontweight='bold')
@@ -502,7 +576,7 @@ plt.show()
 #| fig-cap: "Global Combined Recreation Value (USD)"
 #| label: fig-total-value
 
-fig, ax = plt.subplots(1, 1, figsize=(14, 7))
+fig, ax = plt.subplots(1, 1, figsize=(8, 4))
 gdf.plot(column="total_value", ax=ax, legend=True, cmap="Greens", 
          edgecolor='none', legend_kwds={'shrink': 0.5})
 ax.set_title("Global Combined Recreation Value (USD)", fontsize=16, fontweight='bold')
@@ -522,12 +596,14 @@ plt.show()
 
 # Create summary table
 summary_df = gdf.drop(columns='geometry')[[
-  'iso3_r250_label', 
-  'home_visits', 
+  'iso3_r250_label',
+  'home_visits',
   'home_value',
-  'lodging_visits', 
-  'lodging_value', 
-  'total_visits', 
+  'lodging_visits',
+  'lodging_value',
+  'accommodation_value',
+  'air_travel_value',
+  'total_visits',
   'total_value']]
 
 # Sort by total value
@@ -540,13 +616,17 @@ summary_df = summary_df.rename(columns={
     'home_value': 'Recreation from Home Value (USD)',
     'lodging_visits': 'Recreation from Lodging Visits',
     'lodging_value': 'Recreation from Lodging Value (USD)',
+    'accommodation_value': 'Accommodation Value (USD)',
+    'air_travel_value': 'Air Travel Value (USD)',
     'total_visits': 'Total Visits',
     'total_value': 'Total Value (USD)'
 })
 
-# Format large numbers
+# Format large numbers with adaptive K/M/B/T abbreviations (see format_abbreviated
+# in the imports cell), so magnitudes from thousands to hundreds of billions
+# stay comparably legible rather than all-digit strings of varying length
 for col in summary_df.columns[1:]:
-    summary_df[col] = summary_df[col].apply(lambda x: f"{x:,.0f}")
+    summary_df[col] = summary_df[col].apply(format_abbreviated)
 
 # Display using markdown for better Word compatibility
 Markdown(tabulate(summary_df, headers='keys', tablefmt='pipe', showindex=False))

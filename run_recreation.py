@@ -4,13 +4,25 @@ import recreation_tasks
 
  
 def build_recreation_task_tree(p):
+    # --- Recreation opportunity (site potential) ---
     p.generate_environment_index_task = p.add_task(recreation_tasks.generate_environment_index)
     p.generate_accessibility_index_task = p.add_task(recreation_tasks.generate_accessibility_index)
     p.recreation_site_analysis_task = p.add_task(recreation_tasks.recreation_site_analysis)
+
+    # --- Demand-side inputs (population/overnight proxies, demand params, travel-cost matrices) ---
     p.allocate_overnights_task = p.add_task(recreation_tasks.allocate_overnights)
     p.fit_recreation_demand_params_task = p.add_task(recreation_tasks.fit_recreation_demand_params)
+    p.build_airfare_region_matrix_task = p.add_task(recreation_tasks.build_airfare_region_matrix)
+
+    # --- Flow / visitation calculations ---
     p.calculate_daily_rec_task = p.add_task(recreation_tasks.calculate_daily_recreation_into_sites_kernel)
     p.calculate_tourist_recreation_task = p.add_task(recreation_tasks.calculate_tourist_recreation_into_sites_kernel)
+
+    # --- Additive valuation components layered on top of ground-travel value ---
+    p.calculate_accommodation_value_task = p.add_task(recreation_tasks.calculate_accommodation_value)
+    p.calculate_air_travel_value_task = p.add_task(recreation_tasks.calculate_air_travel_value)
+
+    # --- Aggregation ---
     p.aggregate_results_task = p.add_task(recreation_tasks.aggregate_results_iso3)
     return p
 

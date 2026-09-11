@@ -1,37 +1,5 @@
 """
-recreation_tasks.py  (v2, consolidated)
-
-CHANGES FROM v1:
-  - recreation_site_analysis now dissolves contiguous HQ pixels into
-    discrete site blobs (merge_hq_sites) as its final step, so downstream
-    reporting is per real-world site, not per pixel.
-  - The old per-site-pixel convolution + per-country linear-demand-curve
-    value model is replaced by a single param-table-driven flow model:
-    one continuous equation f(d) = participation_param * exp(-distance_param*d)
-    per param_group, evaluated via two convolution passes (visits, value).
-    See calculate_recreation_flows for the full derivation.
-  - calculate_daily_recreation_into_sites_kernel / _tourist_ keep their
-    original names (task-tree compatible) but now call
-    calculate_recreation_flows under the hood.
-  - aggregate_results_iso3 now reads the site-level CSVs the flow
-    calculation writes directly, rather than summing per-pixel rasters.
-
-PARAMETER TABLE (external input, replaces on-the-fly survey fitting):
-  Expected columns: iso3_r250_id, unwto_name, param_group,
-                     participation_param, distance_param
-  - param_group: arbitrary integer, purely a computational grouping key
-    (country-level = give every country its own value; continent-level =
-    share a value across several countries). Doesn't need to mean anything
-    outside this pipeline.
-  - participation_param (a): per-capita annual visit rate at distance 0.
-    Governs the TOTAL level of realized visits and unmet demand.
-  - distance_param (b): exponential decay rate (per km). Governs the
-    SPATIAL SPLIT between nearby sites (participation_param cancels out of
-    the normalized allocation share, so this parameter alone shapes "how
-    far people are willing to go" independent of "how often they go").
-  All countries sharing a param_group must have identical
-  participation_param/distance_param (that's what makes them one group);
-  load_recreation_params validates this.
+recreation_tasks.py
 """
 
 import os
@@ -42,9 +10,16 @@ import pygeoprocessing
 from osgeo import gdal, osr
 from scipy import ndimage
 
+import itertools
+import time
+import urllib.parse
+import urllib.request
+import json
+import datetime
+
 
 # ===========================================================================
-# Environment / accessibility / site ranking (UNCHANGED from v1)
+# Environment / accessibility / site ranking
 # ===========================================================================
 
 def generate_environment_index(p):
@@ -241,7 +216,7 @@ def recreation_site_analysis(p):
 
 
 # ===========================================================================
-# Overnight allocation (UNCHANGED from v1)
+# Overnight allocation
 # ===========================================================================
 
 def allocate_overnights(p):
@@ -448,7 +423,7 @@ def convert_pixel_size_to_km(raster_path, pixel_size_native):
 
 
 # ===========================================================================
-# NEW v2: param-table-driven flow model
+# Param-table-driven flow model
 # ===========================================================================
 
 def load_recreation_params(p, param_table_path=None):
@@ -818,7 +793,7 @@ def _log_overnights_coverage(p, country_id_path, country_overnights_map):
 
 def calculate_recreation_flows(p, inputs, outputs, group_params, max_distance_km=50.0, max_bands=8):
     """
-    Core v2 flow model, banded version. For every param_group g with (a, b):
+    Core flow model, banded version. For every param_group g with (a, b):
       cutoff_km_g = max_distance_km     (fixed farthest reasonable day-trip
                      distance, the same for every group -- see
                      compute_group_bands for why this is no longer derived
@@ -848,7 +823,7 @@ def calculate_recreation_flows(p, inputs, outputs, group_params, max_distance_km
 
     MEMORY: this version never loads a full global raster into memory.
     Only group_id gets one streaming pass (_scan_group_bboxes, to find each
-    group's extent) -- pop/dist/country/hq are all read as small WINDOWED
+    group's extent) - pop/dist/country/hq are all read as small WINDOWED
     slices, one group's clipped bounding box at a time, directly off disk.
 
     inputs: dict with 'hq_sites', 'hq_sites_dissolved', 'population',
@@ -1145,7 +1120,7 @@ def _write_site_table(hq_sites_path, country_id_path, visits_path, value_path, o
 
 
 # ---------------------------------------------------------------------------
-# Task-tree entry points (names kept from v1 for wiring compatibility)
+# Task-tree entry points
 # ---------------------------------------------------------------------------
 
 def fit_recreation_demand_params(p):
@@ -1238,6 +1213,368 @@ def calculate_tourist_recreation_into_sites_kernel(p):
     calculate_recreation_flows(p, inputs, outputs, _load_group_params(p), max_distance_km=50.0, max_bands=8)
 
 
+def calculate_accommodation_value(p):
+    """
+    Values overnight stays at the hotel prices they were spent at:
+    accommodation_value = overnights * mean hotel price per person per night.
+
+    Uses the pre-built hybrid hotel-price surface as-is (observed pixel ->
+    kriged -> nearest-observed-within-500km -> country mean, precedence
+    order; see README_Interpolation.md alongside the source rasters) --
+    no re-interpolation is done here. NaN cells in that surface (~26% of
+    land, mostly Greenland, the Sahara, interior Central Asia, and
+    Antarctica) mean "no price estimate available," not "free," and are
+    propagated as NaN rather than 0: a pixel with overnight stays but no
+    price estimate contributes an unknown (not zero) accommodation value,
+    tracked separately in the country table below so the coverage gap is
+    visible rather than silently absorbed into the total.
+    """
+    price_path = os.path.join(p.data_dir, 'gep_recreation/0_inputs/booking/hotel_price_per_occupancy_mean_0p5deg_filled.tif')
+    overnights_path = os.path.join(p.allocate_overnights_dir, 'overnights_1km.tif')
+    country_id_path = os.path.join(p.allocate_overnights_dir, 'iso3_r250_ids_1km.tif')
+
+    price_1km_path = os.path.join(p.cur_dir, 'hotel_price_per_occupancy_mean_1km.tif')
+    value_path = os.path.join(p.cur_dir, 'accommodation_value_1km.tif')
+    country_table_path = os.path.join(p.cur_dir, 'accommodation_value_by_country.csv')
+
+    outputs = {'value': value_path, 'country_table': country_table_path}
+    if all(os.path.exists(v) for v in outputs.values()):
+        p.L.info("Accommodation value already exists, skipping calculation")
+        return
+
+    for name, path in [('hotel_price', price_path), ('overnights', overnights_path), ('country_id', country_id_path)]:
+        if not os.path.exists(path):
+            raise FileNotFoundError(f"Missing input file for calculate_accommodation_value ({name}): {path}")
+
+    overnights_info = pygeoprocessing.get_raster_info(overnights_path)
+    overnights_nodata = overnights_info['nodata'][0]
+
+    if not os.path.exists(price_1km_path):
+        p.L.info(f"Resampling 0.5-degree hotel price surface onto the 1km grid: {price_1km_path}")
+        pygeoprocessing.warp_raster(
+            price_path, overnights_info['pixel_size'], price_1km_path, 'bilinear',
+            target_bb=overnights_info['bounding_box'],
+            target_projection_wkt=overnights_info['projection_wkt'])
+
+    p.L.info(f"Calculating accommodation value and saving to: {value_path}")
+
+    def value_op(overnights, price):
+        has_overnights = (overnights != overnights_nodata) & (overnights > 0) if overnights_nodata is not None \
+            else (overnights > 0)
+        price_missing = np.isnan(price)
+        result = np.zeros_like(overnights, dtype=np.float32)
+        result[has_overnights & price_missing] = np.nan
+        priced = has_overnights & ~price_missing
+        result[priced] = overnights[priced] * price[priced]
+        return result
+
+    pygeoprocessing.raster_calculator(
+        [(overnights_path, 1), (price_1km_path, 1)], value_op, value_path, gdal.GDT_Float32, -9999)
+
+    p.L.info("Aggregating accommodation value and overnights price-coverage by country")
+    overnights_ds = gdal.Open(overnights_path); overnights_band = overnights_ds.GetRasterBand(1)
+    country_ds = gdal.Open(country_id_path); country_band = country_ds.GetRasterBand(1)
+    value_ds = gdal.Open(value_path); value_band = value_ds.GetRasterBand(1)
+    country_nodata = pygeoprocessing.get_raster_info(country_id_path)['nodata'][0]
+
+    totals = {}
+    for block_info in pygeoprocessing.iterblocks((overnights_path, 1), offset_only=True):
+        xoff, yoff = block_info['xoff'], block_info['yoff']
+        wx, wy = block_info['win_xsize'], block_info['win_ysize']
+        overnights_block = overnights_band.ReadAsArray(xoff, yoff, wx, wy)
+        country_block = country_band.ReadAsArray(xoff, yoff, wx, wy)
+        value_block = value_band.ReadAsArray(xoff, yoff, wx, wy)
+
+        has_overnights = (overnights_block != overnights_nodata) & (overnights_block > 0) if overnights_nodata is not None \
+            else (overnights_block > 0)
+        valid_country = (country_block != country_nodata) & (country_block > 0) if country_nodata is not None \
+            else (country_block > 0)
+        mask = has_overnights & valid_country
+        if not np.any(mask):
+            continue
+
+        priced_mask = mask & ~np.isnan(value_block)
+        for cid in np.unique(country_block[mask]):
+            cid = int(cid)
+            cmask = mask & (country_block == cid)
+            cpriced = priced_mask & (country_block == cid)
+            entry = totals.setdefault(cid, {'total_overnights': 0.0, 'priced_overnights': 0.0, 'accommodation_value': 0.0})
+            entry['total_overnights'] += float(overnights_block[cmask].sum())
+            entry['priced_overnights'] += float(overnights_block[cpriced].sum())
+            entry['accommodation_value'] += float(np.nansum(value_block[cmask]))
+    overnights_ds, country_ds, value_ds = None, None, None
+    overnights_band, country_band, value_band = None, None, None
+
+    rows = []
+    for cid, entry in totals.items():
+        coverage_share = entry['priced_overnights'] / entry['total_overnights'] if entry['total_overnights'] > 0 else np.nan
+        rows.append({
+            'iso3_r250_id': cid, 'total_overnights': entry['total_overnights'],
+            'priced_overnights': entry['priced_overnights'], 'accommodation_value': entry['accommodation_value'],
+            'price_coverage_share': coverage_share,
+        })
+    country_df = pd.DataFrame(rows).sort_values('price_coverage_share')
+    country_df.to_csv(country_table_path, index=False)
+    p.L.info(f"Saved accommodation value + price-coverage table to {country_table_path}")
+    low_coverage = country_df[country_df['price_coverage_share'] < 0.5]
+    if not low_coverage.empty:
+        p.L.warning(f"{len(low_coverage)} countries have hotel-price coverage under 50% of their overnight-stays "
+                    f"(accommodation_value for these is a partial sum, not a full-country estimate): "
+                    f"{sorted(low_coverage['iso3_r250_id'].tolist())}")
+
+
+
+# 3 hubs per UNWTO region, chosen for sub-regional geographic spread and
+# consistent with unwto_region_crosswalk.csv (e.g. Egypt hubs excluded from
+# Africa since Egypt is UNWTO Middle East). "Other" is intentionally omitted.
+HUBS = {
+    'Africa': ['JNB', 'NBO', 'LOS'],                      # Johannesburg, Nairobi, Lagos
+    'Americas': ['ATL', 'GRU', 'MEX'],                    # Atlanta, Sao Paulo, Mexico City
+    'East Asia and the Pacific': ['HND', 'SIN', 'SYD'],   # Tokyo, Singapore, Sydney
+    'Europe': ['LHR', 'CDG', 'IST'],                      # London, Paris, Istanbul
+    'Middle East': ['DXB', 'DOH', 'RUH'],                 # Dubai, Doha, Riyadh
+    'South Asia': ['DEL', 'DAC', 'CMB'],                  # Delhi, Dhaka, Colombo
+}
+
+REQUEST_DELAY_SECONDS = 0.4
+N_CHEAPEST_TO_AVERAGE = 5
+TARGET_YEAR = 2019
+
+def flightlist_query_url(origin_iata, destination_iata, outbound_date, return_date):
+    query = {
+        'fly_from': f'airport:{origin_iata}', 'fly_to': f'airport:{destination_iata}',
+        'date_from': outbound_date.strftime('%d/%m/%Y'), 'date_to': outbound_date.strftime('%d/%m/%Y'),
+        'return_from': return_date.strftime('%d/%m/%Y'), 'return_to': return_date.strftime('%d/%m/%Y'),
+        'adults': '1', 'children': '0', 'infants': '0', 'selected_cabins': 'M', 'curr': 'USD',
+        'limit': '20', 'sort': 'price', 'max_stopovers': '10', 'flight_type': 'return',
+        'adult_hand_bag': '0', 'adult_hold_bag': '0',
+    }
+    return 'https://www.flightlist.io/api/search.php?' + urllib.parse.urlencode(query)
+
+
+def fetch_cheapest_fares(origin_iata, destination_iata, outbound_date, return_date):
+    url = flightlist_query_url(origin_iata, destination_iata, outbound_date, return_date)
+    request = urllib.request.Request(url, headers={
+        'User-Agent': ('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 '
+                       '(KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36'),
+        'Accept': 'application/json, text/plain, */*',
+        'Referer': 'https://www.flightlist.io/',
+    })
+    try:
+        with urllib.request.urlopen(request, timeout=15) as response:
+            payload = json.loads(response.read().decode('utf-8'))
+    except Exception as error:
+        print(f"  {origin_iata}->{destination_iata}: request failed ({error})")
+        return []
+    prices = sorted(f['price'] for f in payload.get('data', []) if f.get('price') is not None)
+    return prices[:N_CHEAPEST_TO_AVERAGE]
+
+
+
+def build_airfare_regions(data_dir, output_dir=None):
+    """
+    Builds a 2019 region-to-region airfare matrix.
+
+    Method:
+      1. Scrape current round-trip fares (flightlist.io public JSON endpoint,
+         no API key) for every ordered pair among 3 representative hub airports
+         per UNWTO region (18 hubs total; "Other" is skipped - see
+         unwto_region_crosswalk.csv, it is a near-empty residual bucket real
+         countries essentially never fall into).
+      2. Average the 5 cheapest quotes per hub-pair, then average all hub-pairs
+         belonging to the same region-pair.
+      3. Deflate today's fare to a 2019-equivalent fare using the ratio of the
+         BLS Producer Price Index for kerosene-type jet fuel (WPU05720301) at
+         the 2019 average to its value in the survey month.
+    """
+    if output_dir is None:
+        output_dir = data_dir + 'gep_recreation/0_inputs'
+    output_csv = os.path.join(output_dir, 'airfare_2019_regions.csv')
+
+    outbound_date = datetime.date.today() + datetime.timedelta(days=21)
+    outbound_date += datetime.timedelta(days=(4 - outbound_date.weekday()) % 7)  # next Friday
+    return_date = outbound_date + datetime.timedelta(days=7)
+    print(f"Survey dates: {outbound_date} -> {return_date}")
+
+    hub_to_region = {iata: region for region, iatas in HUBS.items() for iata in iatas}
+    all_hubs = list(hub_to_region.keys())
+    pairs = [(o, d) for o, d in itertools.product(all_hubs, all_hubs) if o != d]
+    print(f"Querying {len(pairs)} hub-pairs across {len(HUBS)} regions "
+          f"({len(all_hubs)} hubs, {N_CHEAPEST_TO_AVERAGE}-cheapest average each)...")
+
+    rows = []
+    for i, (origin, destination) in enumerate(pairs):
+        prices = fetch_cheapest_fares(origin, destination, outbound_date, return_date)
+        avg_price = float(np.mean(prices)) if prices else np.nan
+        rows.append({
+            'origin_iata': origin, 'destination_iata': destination,
+            'origin_region': hub_to_region[origin], 'destination_region': hub_to_region[destination],
+            'n_quotes': len(prices), 'average_fare_usd': avg_price,
+        })
+        if (i + 1) % 20 == 0 or i == len(pairs) - 1:
+            print(f"  {i + 1}/{len(pairs)} pairs done")
+        time.sleep(REQUEST_DELAY_SECONDS)
+
+    hub_pairs = pd.DataFrame(rows)
+    hub_pairs.to_csv(os.path.join(output_dir, 'airfare_hub_pairs_raw.csv'), index=False)
+
+    missing = hub_pairs['average_fare_usd'].isna().sum()
+    if missing:
+        print(f"Warning: {missing} of {len(hub_pairs)} hub-pairs returned no usable quote")
+
+    region_pairs = hub_pairs.groupby(['origin_region', 'destination_region'])['average_fare_usd'].mean().reset_index()
+    region_pairs = region_pairs.rename(columns={'average_fare_usd': 'average_fare_usd_current'})
+
+    jet_fuel_ppi_csv_path = os.path.join(data_dir, 'gep_recreation/0_inputs/WPU05720301.csv')
+    ppi = pd.read_csv(jet_fuel_ppi_csv_path)
+
+    ppi['observation_date'] = pd.to_datetime(ppi['observation_date'])
+    ppi_2019_avg = ppi.loc[ppi['observation_date'].dt.year == TARGET_YEAR, 'WPU05720301'].mean()
+    survey_month = pd.Timestamp(outbound_date.year, outbound_date.month, 1)
+    ppi_survey_row = ppi.loc[ppi['observation_date'] == survey_month, 'WPU05720301']
+    if ppi_survey_row.empty:
+        ppi_survey = ppi.sort_values('observation_date')['WPU05720301'].iloc[-1]
+        print(f"No PPI observation for {survey_month.date()}; using latest available value {ppi_survey}")
+    else:
+        ppi_survey = ppi_survey_row.iloc[0]
+    deflation_factor = ppi_2019_avg / ppi_survey
+    print(f"Jet-fuel PPI: {TARGET_YEAR} avg = {ppi_2019_avg:.2f}, survey month = {ppi_survey:.2f}, "
+          f"deflation factor = {deflation_factor:.4f}")
+
+    region_pairs['deflation_factor'] = deflation_factor
+    region_pairs['predicted_fare_2019_usd'] = region_pairs['average_fare_usd_current'] * deflation_factor
+    region_pairs['year'] = TARGET_YEAR
+
+    region_pairs.to_csv(output_csv, index=False)
+    print(f"Saved region-pair 2019 airfare matrix to {output_csv}")
+    print(region_pairs.sort_values(['origin_region', 'destination_region']).to_string(index=False))
+
+
+def build_airfare_region_matrix(p):
+    """
+    Scrapes current round-trip fares (flightlist.io, no API key) across 18
+    hub airports (3 per UNWTO region - see HUBS) and
+    deflates them to a 2019-equivalent fare using the jet-fuel PPI ratio.
+
+    NOTE: unlike every other task in this pipeline, this one makes live
+    network requests to a third-party API rather than reading static local
+    files, so it can fail or return different numbers on a future rerun if
+    that API's availability, pricing, or terms change. It is cached (skipped
+    if its output already exists) exactly like the other input-prep tasks,
+    so a normal rerun will not silently re-scrape and drift.
+    """
+    output_path = os.path.join(p.cur_dir, 'airfare_2019_regions.csv')
+    if os.path.exists(output_path):
+        p.L.info(f"Airfare region matrix already exists: {output_path}")
+        return
+    p.L.info("Scraping current regional airfare quotes (flightlist.io) and deflating to 2019...")
+    build_airfare_regions(data_dir=p.data_dir, output_dir=p.cur_dir)
+    p.L.info(f"Saved airfare region matrix to {output_path}")
+
+
+def clean_unwto_arrivals_by_region(arrivals_workbook_path):
+    """
+    Parses UNWTO's 'Inbound Tourism-Regions' sheet: for each destination
+    country and year, arrivals broken out by the origin region of the
+    visitor (Africa, Americas, East Asia and the Pacific, Europe, Middle
+    East, South Asia, Other not classified). Values are reported in
+    thousands of arrivals in the source workbook.
+    """
+    df = pd.read_excel(arrivals_workbook_path, sheet_name='Inbound Tourism-Regions')
+    start_idx = df[df.iloc[:, 3] == 'AFGHANISTAN'].index[0]
+    df = pd.read_excel(arrivals_workbook_path, sheet_name='Inbound Tourism-Regions', skiprows=start_idx)
+
+    region_col = 'Unnamed: 6'
+    valid_regions = ['Africa', 'Americas', 'East Asia and the Pacific', 'Europe',
+                      'Middle East', 'South Asia', 'Other not classified']
+    df = df[df[region_col].isin(valid_regions)].copy()
+    df['C.'] = df['C.'].ffill()
+
+    year_cols = [c for c in df.columns if isinstance(c, int)]
+    tidy = df.melt(id_vars=['C.', region_col], value_vars=year_cols,
+                    var_name='year', value_name='arrivals_thousands')
+    tidy = tidy.rename(columns={'C.': 'iso3_r250_id', region_col: 'origin_region'})
+    tidy['origin_region'] = tidy['origin_region'].replace({'Other not classified': 'Other'})
+    tidy['iso3_r250_id'] = tidy['iso3_r250_id'].astype(int)
+    tidy['arrivals'] = pd.to_numeric(tidy['arrivals_thousands'], errors='coerce') * 1000.0
+    return tidy[['iso3_r250_id', 'origin_region', 'year', 'arrivals']].dropna(subset=['arrivals'])
+
+
+def calculate_air_travel_value(p, target_year=2019):
+    """
+    Values international air travel to reach the destination country -
+    distinct from, and additive to, both the local ground-travel value
+    (calculate_tourist_recreation_into_sites_kernel) and the accommodation
+    value (calculate_accommodation_value): air_travel_value =
+    sum over origin regions of (arrivals from that region) x (regional
+    airfare from that region to the destination country's own region).
+
+    Nearest-year fallback to target_year mirrors allocate_overnights: for
+    each country, use whichever year has the closest reported arrivals data
+    to 2019, since UNWTO reporting of this indicator is inconsistent across
+    countries and years exactly like the Overnights indicator was.
+    """
+    arrivals_path = os.path.join(p.data_dir, 'gep_recreation/0_inputs/unwto-all-data-download_2022.xlsx')
+    airfare_path = os.path.join(p.build_airfare_region_matrix_dir, 'airfare_2019_regions.csv')
+    crosswalk_path = os.path.join(p.data_dir, 'gep_recreation/0_inputs/unwto_region_crosswalk.csv')
+
+    output_path = os.path.join(p.cur_dir, 'air_travel_value_by_country.csv')
+    if os.path.exists(output_path):
+        p.L.info(f"Air travel value already exists: {output_path}")
+        return
+
+    for name, path in [('arrivals_workbook', arrivals_path), ('airfare_matrix', airfare_path),
+                        ('region_crosswalk', crosswalk_path)]:
+        if not os.path.exists(path):
+            raise FileNotFoundError(f"Missing input file for calculate_air_travel_value ({name}): {path}")
+
+    p.L.info("Cleaning UNWTO arrivals-by-origin-region data")
+    arrivals = clean_unwto_arrivals_by_region(arrivals_path)
+
+    # Nearest-year fallback per country, chosen from years with any nonzero
+    # region-level arrivals, so all of a country's origin-region shares come
+    # from the same year rather than mixing years across regions.
+    country_year_totals = arrivals.groupby(['iso3_r250_id', 'year'])['arrivals'].sum().reset_index()
+    country_year_totals = country_year_totals[country_year_totals['arrivals'] > 0]
+    year_choice_rows = []
+    for cid, sub in country_year_totals.groupby('iso3_r250_id'):
+        sub = sub.assign(year_distance=(sub['year'] - target_year).abs())
+        best = sub.sort_values(['year_distance', 'year'], ascending=[True, False]).iloc[0]
+        year_choice_rows.append({'iso3_r250_id': cid, 'year_used': int(best['year'])})
+    year_choice = pd.DataFrame(year_choice_rows)
+    p.L.info(f"Usable arrivals-by-region data for {len(year_choice)} of 250 countries")
+
+    arrivals_chosen = arrivals.merge(year_choice, left_on=['iso3_r250_id', 'year'],
+                                      right_on=['iso3_r250_id', 'year_used'])
+
+    crosswalk = pd.read_csv(crosswalk_path)[['iso3_r250_id', 'unwto_region']].rename(
+        columns={'unwto_region': 'destination_region'})
+    airfare = pd.read_csv(airfare_path)[['origin_region', 'destination_region', 'predicted_fare_2019_usd']]
+
+    merged = arrivals_chosen.merge(crosswalk, on='iso3_r250_id', how='left')
+    merged = merged.merge(airfare, on=['origin_region', 'destination_region'], how='left')
+    # "Other" origin/destination has no fare in the matrix (near-empty
+    # residual UNWTO bucket, intentionally not scraped - see
+    # build_airfare_regions.py); those arrivals are tracked but not priced.
+    merged['priced_arrivals'] = np.where(merged['predicted_fare_2019_usd'].notna(), merged['arrivals'], 0.0)
+    merged['value'] = merged['arrivals'] * merged['predicted_fare_2019_usd']
+
+    country_df = merged.groupby('iso3_r250_id').agg(
+        total_arrivals=('arrivals', 'sum'),
+        priced_arrivals=('priced_arrivals', 'sum'),
+        air_travel_value=('value', lambda s: s.sum(skipna=True)),
+    ).reset_index()
+    country_df['arrivals_coverage_share'] = np.where(
+        country_df['total_arrivals'] > 0, country_df['priced_arrivals'] / country_df['total_arrivals'], np.nan)
+
+    country_df.to_csv(output_path, index=False)
+    p.L.info(f"Saved air travel value table to {output_path}")
+    low_coverage = country_df[country_df['arrivals_coverage_share'] < 0.5]
+    if not low_coverage.empty:
+        p.L.warning(f"{len(low_coverage)} countries have arrivals priced for under 50% of their total "
+                    f"(air_travel_value for these is a partial sum): {sorted(low_coverage['iso3_r250_id'].tolist())}")
+
+
 def aggregate_results_iso3(p):
     """Aggregate daily and tourist recreation results to country level,
     reading the site-level CSVs the flow calculation writes directly."""
@@ -1247,6 +1584,8 @@ def aggregate_results_iso3(p):
         'daily_missing_cost': os.path.join(p.calculate_daily_recreation_into_sites_kernel_dir, 'missing_cost_countries.csv'),
         'tourist_missing_cost': os.path.join(p.calculate_tourist_recreation_into_sites_kernel_dir, 'missing_cost_countries.csv'),
         'missing_overnights': os.path.join(p.allocate_overnights_dir, 'missing_overnights_iso3.csv'),
+        'accommodation_table': os.path.join(p.calculate_accommodation_value_dir, 'accommodation_value_by_country.csv'),
+        'air_travel_table': os.path.join(p.calculate_air_travel_value_dir, 'air_travel_value_by_country.csv'),
         'country_gpkg': os.path.join(p.data_dir, 'gep_recreation', '0_inputs', 'ee_r250_correspondence.gpkg'),
     }
     outputs = {
@@ -1282,8 +1621,8 @@ def aggregate_results_iso3(p):
 
     # Countries with no fuel-cost data get cost_per_km=0 inside the flow
     # calculation, which reads as "value=0" (travel is free) rather than
-    # "value is unknown". Overwrite value -- but not visits, which don't
-    # depend on cost -- with NaN for those countries so a real zero isn't
+    # "value is unknown". Overwrite value but not visits, which don't
+    # depend on cost with NaN for those countries so a real zero isn't
     # confused with missing data downstream.
     missing_cost_daily = pd.read_csv(inputs['daily_missing_cost'])['iso3_r250_id']
     missing_cost_tourist = pd.read_csv(inputs['tourist_missing_cost'])['iso3_r250_id']
@@ -1293,15 +1632,44 @@ def aggregate_results_iso3(p):
     # Countries with NO UNWTO Overnights data in any year (e.g. Indonesia,
     # which only reports Arrivals) get an all-zero overnights raster, so
     # BOTH tourist_visits and tourist_value are unknown there, not just
-    # value -- unlike the cost gap above, the whole tourist-population
+    # value - unlike the cost gap above, the whole tourist-population
     # input is missing, not one factor in the value formula.
     missing_overnights = pd.read_csv(inputs['missing_overnights'])['iso3_r250_id']
     df.loc[df['iso3_r250_id'].isin(missing_overnights), ['tourist_visits', 'tourist_value']] = np.nan
 
+    # Accommodation value (overnights x hotel price) is a separate, additive
+    # component - the cost of staying somewhere, distinct from tourist_value
+    # (the cost of local ground travel from lodging to the recreation site).
+    # A country with no overnight-stay data at all also can't have an
+    # accommodation value; price_coverage_share reflects hotel-price-surface
+    # gaps only (unpriced land within a country that does have stays), and is
+    # kept as a visible caveat column rather than used to null out results.
+    accommodation = pd.read_csv(inputs['accommodation_table'])[
+        ['iso3_r250_id', 'accommodation_value', 'price_coverage_share']]
+    df = df.merge(accommodation, on='iso3_r250_id', how='left')
+    df.loc[df['iso3_r250_id'].isin(missing_overnights), ['accommodation_value', 'price_coverage_share']] = np.nan
+
+    # Air travel value (arrivals-by-origin-region x regional airfare) is a
+    # third additive component - the cost of reaching the destination
+    # country by air, distinct from both tourist_value (local ground travel
+    # once there) and accommodation_value (cost of staying somewhere). Its
+    # own coverage gap is independent of the Overnights indicator: it comes
+    # from UNWTO's separate Arrivals-by-region indicator, so countries with
+    # no usable arrivals-by-region data (total_arrivals missing or 0) get
+    # NaN here even if they have valid overnights/accommodation data.
+    air_travel = pd.read_csv(inputs['air_travel_table'])[
+        ['iso3_r250_id', 'total_arrivals', 'air_travel_value', 'arrivals_coverage_share']]
+    df = df.merge(air_travel, on='iso3_r250_id', how='left')
+    no_arrivals_data = df['total_arrivals'].isna() | (df['total_arrivals'] == 0)
+    df.loc[no_arrivals_data, ['air_travel_value', 'arrivals_coverage_share']] = np.nan
+    df = df.drop(columns='total_arrivals')
+
     gdf = gpd.read_file(inputs['country_gpkg'])
     gdf_merged = gdf.merge(df, on='iso3_r250_id', how='left')
     gdf_out = gdf_merged[['iso3_r250_id', 'iso3_r250_label', 'daily_visits', 'daily_value',
-                           'tourist_visits', 'tourist_value', 'geometry']]
+                           'tourist_visits', 'tourist_value', 'accommodation_value',
+                           'price_coverage_share', 'air_travel_value', 'arrivals_coverage_share',
+                           'geometry']]
 
     pd.DataFrame(gdf_out).drop(columns='geometry').to_csv(outputs['results_by_country_csv'], index=False)
     p.L.info(f"Saved country results to {outputs['results_by_country_csv']}")
