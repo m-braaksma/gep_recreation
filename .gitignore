@@ -4,3 +4,6 @@ recreation_tasks *.py
 .DS_Store
 archived/*
 *archive*
+# Rendered appendix (build locally with quarto render)
+recreation_methods/*.html
+recreation_methods/*.docx
