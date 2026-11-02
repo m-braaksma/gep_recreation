@@ -87,6 +87,7 @@ def build_airfare_regions(data_dir, output_dir=None):
     if output_dir is None:
         output_dir = os.path.join(data_dir, 'gep_recreation', '0_inputs')
     output_csv = os.path.join(output_dir, 'airfare_2019_regions.csv')
+    os.makedirs(output_dir, exist_ok=True)
 
     outbound_date = datetime.date.today() + datetime.timedelta(days=21)
     outbound_date += datetime.timedelta(days=(4 - outbound_date.weekday()) % 7)  # next Friday

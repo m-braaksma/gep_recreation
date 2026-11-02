@@ -379,5 +379,5 @@ def aggregate_results_iso3(p):
     p.L.info(f"Saved country results to {outputs['results_by_country_csv']}")
     gdf_out.to_file(outputs['results_by_country_gpkg'], driver='GPKG')
     p.L.info(f"Saved country results to {outputs['results_by_country_gpkg']}")
-    ru.format_gep_table(df).to_csv(outputs['gep_results_csv'], index=False, encoding='utf-8-sig')
+    ru.format_gep_table(pd.DataFrame(gdf_out).drop(columns='geometry')).to_csv(outputs['gep_results_csv'], index=False, encoding='utf-8-sig')
     p.L.info(f"Saved GEP results table to {outputs['gep_results_csv']}")

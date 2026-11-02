@@ -359,10 +359,10 @@ def format_gep_table(df, units=1e6):
     df = df.sort_values('iso3_r250_label').reset_index(drop=True)
     out = pd.DataFrame({'Country (ISO3)': list(df['iso3_r250_label']) + ['Total']})
     for col, (label, marker) in GEP_COMPONENTS.items():
-        values = (df[col] / units).round(2)
+        values = df[col] / units
         cells = [f'NA{marker}' if pd.isna(v) else f'{v:.2f}' for v in values]
         out[f'{label} (million 2019 USD)'] = cells + [f'{values.sum():.2f}']
-    total = (df['grand_total_value'] / units).round(2)
+    total = df['grand_total_value'] / units
     out['Total (million 2019 USD)'] = [
         'NA' if pd.isna(v) else f'{v:.2f}' for v in total] + [f'{total.sum():.2f}']
     legend = pd.DataFrame({'Country (ISO3)': [f'{m} {text}' for m, text in GEP_FOOTNOTES.items()]})

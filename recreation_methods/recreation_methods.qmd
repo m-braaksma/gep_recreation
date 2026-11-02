@@ -116,7 +116,7 @@ flowchart LR
 
     subgraph S4["LAMBDA + AGGREGATION"]
         direction TB
-        LAM["λ = 1 (ground)<br/>λ = 0.183 (lodging, air)"] --> COUNTRY["Country-Level<br/>Value"]
+        LAM["λ = 1 (ground)<br/>λ = 0.183 × personal share (lodging, air)"] --> COUNTRY["Country-Level<br/>Value"]
     end
 
     VISITS --> LAM
