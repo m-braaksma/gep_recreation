@@ -1,6 +1,5 @@
 ---
-title: "Supplementary Information"
-subtitle: "Recreation (Recreation from Home and Recreation from Lodging)"
+title: "Overview of Ecosystem Services: Nature-Based Recreation"
 format:
   html:
     embed-resources: true
@@ -31,7 +30,7 @@ author:
         city:
         country: USA
     email: spwood@uw.edu
-    url: 
+    url:
   - name: Lifeng Ren
     affiliations:
       - name: University of Minnesota
@@ -39,8 +38,8 @@ author:
         address:
         city:
         country: USA
-    email: 
-    url: 
+    email:
+    url:
   - name: Ryan McWay
     affiliations:
       - name: University of Minnesota
@@ -48,101 +47,93 @@ author:
         address:
         city:
         country: USA
-    email: 
-    url: 
+    email:
+    url:
 ---
 
-# Ecosystem Service Description
+This section outlines how we value nature-based recreation as an ecosystem service.
 
-Recreation ecosystem services encompass the benefits people derive from engaging with natural environments for leisure, exercise, and tourism activities. We distinguish between two types of nature-based recreation: **Recreation from Home** represents visits to natural areas by local residents traveling from their homes, while **Recreation from Lodging** captures visits by tourists staying at accommodation facilities. Both forms of recreation depend critically on the quality and accessibility of natural ecosystems, generating substantial economic and social value through improved physical and mental health, cultural connections to nature, and tourism-related economic activity.
+Recreation ecosystem services are the benefits people get from using natural areas for leisure, exercise and tourism. We distinguish two kinds of nature-based recreation. **Recreation from home** covers visits to natural areas by residents travelling from where they live. **Recreation from lodging** covers visits by tourists staying in accommodation, along with the accommodation and air travel those trips require. Both depend on the quality of natural ecosystems and on how easy they are to reach.
 
-The valuation approach recognizes that high-quality natural environments, including forests, grasslands, protected areas, and water bodies, in combination with appropriate accessibility infrastructure create opportunities for meaningful human-nature interactions. These recreation opportunities generate measurable economic value through the travel costs people incur to visit natural areas, reflecting revealed demand for ecosystem-based recreation experiences.
-
-Within the SEEA EA framework, this service corresponds to the final non-material recreation-related ecosystem services. It captures the direct contributions of ecosystems that enable individuals to experience, enjoy, and benefit from their natural surroundings. These benefits are realized through activities such as walking, wildlife observation, and nature-based tourism, in which ecosystems provide the setting and biophysical qualities essential for the experience itself. As a final ecosystem service, recreation represents the end point of ecosystem contributions before human use or enjoyment, linking ecological conditions directly to cultural, social, and economic well-being.
+Within the SEEA EA framework, this service is a final, non-material ecosystem service:
 
 > "Recreation-related services are contributions of ecosystems, in particular through their biophysical characteristics and qualities, that enable people to use and enjoy the environment through direct, in situ, physical and experiential interactions with the environment. These include services both to locals and to non-locals (i.e. visitors, including tourists). Recreation-related services may also be supplied to those engaging in recreational fishing or hunting. These are final ecosystem services."
 [@un2021seea]
 
 # Methods
 
-## Overview
+Recreation value is the sum of four components. Each one is valued in the same way, as a quantity times a price times a nature-attribution share ($\lambda$). The value is measured in the capital-account sense, as price times quantity. It is not consumer surplus.
 
-The recreation valuation framework consists of four main steps, shown in @fig-overview. First, we map high-quality recreation areas using geospatial suitability analysis that combines environmental attractiveness with accessibility factors, and dissolve contiguous high-quality pixels into discrete recreation sites. Second, we allocate each population pixel's expected annual trips across reachable sites using a distance-banded demand model, in which allocation shares are conserved so that a population pixel near several nearby sites does not generate more total trips than an otherwise-identical pixel near a single site. Trip demand that cannot be allocated to any reachable site is tracked explicitly as unmet demand rather than discarded. Third, realized visits are priced using each traveler's round-trip travel cost, calculated as a capital-account (price times quantity) measure rather than a consumer-surplus estimate. Finally, site-level results are aggregated to countries. The approach builds on the European Commission's Integrated Natural Capital Accounting (INCA) framework [@Zulian2024] and on scaling-law approaches to human mobility [@Hooftman2023110779].
+$$
+V = \underbrace{Q^{\text{home}} p^{\text{ground}}}_{\text{daily trips}} + \underbrace{Q^{\text{lodging}} p^{\text{ground}}}_{\text{tourist trips}} + s^{\text{personal}} \lambda \underbrace{N \, p^{\text{hotel}}}_{\text{accommodation}} + s^{\text{personal}} \lambda \underbrace{A \, s^{\text{air}} p^{\text{fare}}}_{\text{air travel}}
+$$
+
+| Component | Quantity | Price | $\lambda$ |
+|---|---|---|---|
+| Recreation from home | Visits from residents to high-quality nature sites within 50 km | Round-trip fuel cost | 1 |
+| Recreation from lodging | Visits from overnight tourists to high-quality nature sites within 50 km | Round-trip fuel cost | 1 |
+| Accommodation | Overnight stays (UNWTO) | Hotel price per person per night | 0.183 × personal share |
+| Air travel | International arrivals by origin region × share arriving by air | Regional round-trip airfare (2019 USD) | 0.183 × personal share |
+
+: Summary of valuation components {#tbl-components}
+
+All values are in 2019 USD. Results are reported for 250 countries and territories. @fig-overview shows the workflow.
 
 ::: {#fig-overview}
 
 ```{mermaid}
 flowchart LR
 
-    %% ─────────────────────────────
-    %% STEP 1
-    %% ─────────────────────────────
-    subgraph S1["01  RECREATION OPPORTUNITY"]
+    subgraph S1["QUANTITY: SITES"]
         direction TB
-        
         LULC["Land Cover<br/>+ Protected Areas"] --> ENV["Environmental<br/>Index"]
         ROADS["Road Density<br/>+ Urban Share"] --> ACC["Accessibility<br/>Index"]
-
         ENV --> RANK["Site Ranking"]
         ACC --> RANK
-
         RANK --> HQ["High-Quality<br/>Sites"]
-        HQ --> DISS["Dissolved<br/>Sites"]
     end
 
-    %% ─────────────────────────────
-    %% STEP 2
-    %% ─────────────────────────────
-    subgraph S2["02  DEMAND ALLOCATION"]
+    subgraph S2["QUANTITY: VISITS"]
         direction TB
-
         POP["Resident<br/>Population"]
         OVN["Overnight<br/>Stays"]
         PARAMS["Calibrated<br/>Parameters"]
-
+        ARR["Arrivals by<br/>Origin Region"]
         POP --> ALLOC["Distance-Banded<br/>Allocation"]
         OVN --> ALLOC
         PARAMS --> ALLOC
-        DISS --> ALLOC
-
+        HQ --> ALLOC
         ALLOC --> VISITS["Realized<br/>Visits"]
         ALLOC --> UNMET["Unmet<br/>Demand"]
     end
 
-    %% ─────────────────────────────
-    %% STEP 3
-    %% ─────────────────────────────
-    subgraph S3["03  ECONOMIC VALUATION"]
+    subgraph S3["PRICE"]
         direction TB
-
-        VISITS --> PRICE["Visits ×<br/>Net Price"]
-        FUEL["Country<br/>Fuel Cost"] --> PRICE
-        PRICE --> VALUE["Site-Level<br/>Value"]
+        FUEL["Fuel Cost<br/>per km"]
+        HOTEL["Hotel Price<br/>per Night"]
+        FARE["Regional<br/>Airfare"]
     end
 
-    %% ─────────────────────────────
-    %% STEP 4
-    %% ─────────────────────────────
-    subgraph S4["04  AGGREGATION"]
+    subgraph S4["LAMBDA + AGGREGATION"]
         direction TB
-
-        VALUE --> COUNTRY["Country-Level<br/>Results"]
-        VISITS --> COUNTRY
-        UNMET --> COUNTRY
+        LAM["λ = 1 (ground)<br/>λ = 0.183 (lodging, air)"] --> COUNTRY["Country-Level<br/>Value"]
     end
 
-    %% ─────────────────────────────
-    %% STYLING
-    %% ─────────────────────────────
+    VISITS --> LAM
+    OVN --> LAM
+    ARR --> LAM
+    FUEL --> LAM
+    HOTEL --> LAM
+    FARE --> LAM
 
     classDef input fill:#f7f7f7,stroke:#777,stroke-width:1px,color:#222;
     classDef process fill:#ffffff,stroke:#660033,stroke-width:2px,color:#222;
     classDef output fill:#660033,stroke:#660033,stroke-width:2px,color:#ffffff;
     classDef intermediate fill:#f0e6eb,stroke:#660033,stroke-width:1.5px,color:#222;
 
-    class LULC,ROADS,POP,OVN,PARAMS,FUEL input;
-    class ENV,ACC,RANK,ALLOC,PRICE process;
-    class HQ,DISS,VISITS,UNMET,VALUE intermediate;
+    class LULC,ROADS,POP,OVN,PARAMS,ARR,FUEL,HOTEL,FARE input;
+    class ENV,ACC,RANK,ALLOC,LAM process;
+    class HQ,VISITS,UNMET intermediate;
     class COUNTRY output;
 
     style S1 fill:#faf7f8,stroke:#660033,stroke-width:2px
@@ -153,16 +144,16 @@ flowchart LR
     linkStyle default stroke:#777,stroke-width:1.5px
 ```
 
-Workflow Overview
+Workflow overview
 :::
 
-## Estimating Recreation Opportunity
+## Estimating Quantity
 
-The identification of recreation opportunities requires filtering observations to focus on areas that combine high natural quality with appropriate accessibility for recreational activities.
+There are four quantities: the visits that make up the two ground-travel components (recreation from home and from lodging), the overnight stays that accommodation is priced on, and the international arrivals that air travel is priced on. Visits require a map of recreation sites and a demand model. Overnight stays and arrivals come directly from UNWTO statistics.
 
-### Environmental Index
+### Recreation Sites
 
-We quantify the intrinsic recreational attractiveness of different landscapes by assigning scores to land use/land cover (LULC) types based on their natural recreation appeal (ESA-CCI) [@ESA2017LandCoverCCI]. The environmental index combines weighted LULC shares with protected area status to create a composite measure of ecosystem-based recreation potential. Scores are adapted from the European CORINE Land Cover Data to fit the ESA-CCI Land Cover data [@Vallecillo2019196].
+**Environmental index.** We score how attractive each landscape is for recreation by giving each ESA-CCI land cover class a score [@ESA2017LandCoverCCI]. The scores are adapted from CORINE-based scores [@Vallecillo2019196].
 
 | LULC Class | Score |
 |------------|-------|
@@ -175,17 +166,13 @@ We quantify the intrinsic recreational attractiveness of different landscapes by
 | Other | 0.0 |
 | Protected Areas | 1.0 |
 
-: Environmental Index Scores {#tbl-environmental}
-
-The environmental index is calculated as:
+: Environmental index scores {#tbl-environmental}
 
 $$\text{Environmental Score} = \sum(\text{LULC share} \times \text{LULC score}) + (\text{Protected Area share} \times 1.0)$$
 
-Areas are then classified into four environmental quality categories (0-3) based on combined scores, where higher values indicate greater natural recreation potential.
+The scores are then grouped into four environmental quality classes (0–3).
 
-### Accessibility Index
-
-We measure accessibility to recreational opportunities by combining road network density (GRIP4) [@Meijer2018] and urban development levels (urban share ESA-CCI LULC) [@ESA2017LandCoverCCI]. This index captures how built infrastructure enables recreation access, recognizing that both roads and urban services are essential for facilitating nature-based recreation.
+**Accessibility index.** Accessibility combines road density (GRIP4) [@Meijer2018] with urban share [@ESA2017LandCoverCCI].
 
 | Category | Share of Urban | Road Density (m/km²) |
 |----------|----------------|----------------------|
@@ -195,7 +182,7 @@ We measure accessibility to recreational opportunities by combining road network
 | Medium-Low | (0.001, 0.1] | (5453, 13326] |
 | Low | [0, 0.001) | [0, 5453) |
 
-: Accessibility Index Thresholds {#tbl-accessibility}
+: Accessibility index thresholds {#tbl-accessibility}
 
 | Urban Score | Low | Medium-Low | Medium | Medium-High | High |
 |-------------|-----|------------|--------|-------------|------|
@@ -205,13 +192,11 @@ We measure accessibility to recreational opportunities by combining road network
 | **Medium-High** | 3 | 3 | 4 | 5 | 5 |
 | **High** | 3 | 4 | 5 | 5 | 5 |
 
-: Urban-Road Accessibility Matrix (columns represent Road Score) {#tbl-urban-road}
+: Urban-road accessibility matrix (columns are road score) {#tbl-urban-road}
 
-### High-Quality Area Identification
+**High-quality sites.** The two indices are combined into a site ranking. Pixels ranked 9 are high-quality recreation sites: they combine the highest environmental class with medium-high or high accessibility.
 
-We combine environmental and accessibility indices using a matrix approach to create a comprehensive ranking of recreation areas. This classification system balances natural attractiveness with accessibility needs to identify areas with different recreation potential.
-
-| Environmental Score | Low | Medium-Low | Medium-High | High |
+| Accessibility Score | Low | Medium-Low | Medium-High | High |
 |---------------------|-----|------------|-------------|------|
 | **Low** | 1 | 1 | 4 | 7 |
 | **Medium-Low** | 1 | 4 | 4 | 7 |
@@ -219,174 +204,192 @@ We combine environmental and accessibility indices using a matrix approach to cr
 | **Medium-High** | 3 | 5 | 5 | 9 |
 | **High** | 3 | 6 | 6 | 9 |
 
-: Recreation Area Ranking (columns represent Accessibility Score) {#tbl-ranking}
+: Recreation site ranking (columns are environmental score) {#tbl-ranking}
 
-Areas scoring 9 in the ranking are identified as high-quality recreation sites, representing locations that combine high natural value with appropriate accessibility for recreation activities.
+### Recreation from Home Visits
 
-### Site Dissolution
+**Distance-banded allocation.** Each population pixel's expected annual trips are shared out among the sites it can reach. Total demand is conserved: a pixel near several sites makes no more trips than an otherwise identical pixel near one site. Demand follows an exponential distance-decay density $f(d) = b\,e^{-bd}$, with the level of demand set separately by a participation parameter $a$, the expected annual trips per person at zero distance.
 
-Individual high-quality pixels rarely correspond to a single, independent recreation destination; a large natural area (e.g., a national park) typically spans many contiguous 1km pixels. Treating each pixel as an independent destination would overstate visitation to large sites, since a population pixel near a large contiguous area would have many "destinations" available at effectively the same distance. We therefore dissolve contiguous high-quality pixels (8-connected) into discrete sites prior to demand allocation, so that a single large natural area is treated as one destination regardless of how many 1km pixels it spans.
-
-## Demand Allocation
-
-### Distance-Banded Conserved Allocation Model
-
-Recreation from home visits are estimated using a distance-banded demand model in which each population pixel's expected annual trips are allocated across reachable recreation sites, conserving the total number of trips regardless of how many sites are nearby. 
-<!-- This replaces an earlier gravity-style mobility function calibrated on UK survey data [@NaturalEngland2016MENE], which combined a small number of fixed 1km distance bands with population-dependent logistic terms; that formulation did not scale to global 1km population data, where per-pixel populations are far smaller than the ward-level populations the formula was calibrated on, and it did not extend naturally to heterogeneous, non-UK travel behavior. -->
-
-For each parameter group $g$ (see @sec-parameters), demand follows a two-parameter exponential distance-decay density:
+The 50 km maximum distance is split into $n = 8$ rings. For population pixel $i$, ring $k$ receives a fixed budget of
 
 $$
-f(d) = b_g \cdot e^{-b_g d}
+\text{Pop}_i \cdot a \cdot \text{share}_k, \qquad \text{share}_k = F(d_k) - F(d_{k-1})
 $$
 
-where $d$ is distance in kilometers and $b_g$ is the group's fitted distance-decay rate. This is a normalized probability density ($\int_0^\infty f(d)\, dd = 1$), so it fully describes the *shape* of how trips are distributed across distance, independent of the *overall level* of demand, which is governed separately by a participation parameter $a_g$ (expected annual trips per capita at zero travel distance).
-
-**Fixed maximum travel distance.** All parameter groups share a single maximum travel distance, $d^{\text{cutoff}} = 50$ km, applied uniformly worldwide. We chose a fixed cutoff, rather than deriving it from each group's own decay rate $b_g$ (e.g., as a multiple of the typical trip distance $1/b_g$), because a distance-decay-derived cutoff has no necessary relationship to how far someone would plausibly travel and return the same day: $b_g$ shapes the *spatial split* of demand across nearby sites, but should not also be trusted to say where day-trip demand physically stops. Fifty kilometers is consistent with the farthest travel distances reported in the trip-frequency survey data used to calibrate $a_g$ and $b_g$ (see @sec-parameters): the largest reported distance bin averages roughly 46 km across the three surveys used.
-
-**Distance bands.** Each group's cutoff distance is divided into $n_g$ non-overlapping distance bands (rings), bounded below by one pixel width so that no band is narrower than the underlying 1km raster grid can resolve:
+This budget depends only on distance. If the ring contains one or more sites, the budget is split evenly among them. If it contains none, that part of the budget is recorded as **unmet demand**. Demand beyond 50 km, $1 - F(50)$, is also unmet:
 
 $$
-\text{share}_k = F(d_k) - F(d_{k-1})
+\text{visits}_{i \to j} = \frac{\text{Pop}_i \cdot a \cdot \text{share}_k}{|\mathcal{S}_k(i)|}, \quad j \in \mathcal{S}_k(i);
+\qquad
+\sum_j \text{visits}_{i \to j} + \text{unmet}_i = \text{Pop}_i \cdot a
 $$
 
-For population pixel $i$ with population $\text{Pop}_i$, the fixed budget allocated to band $k$ is $\text{Pop}_i \cdot a_g \cdot \text{share}_k$. This is a property of distance alone, independent of how many recreation sites actually fall within that band, which is the key conservation mechanism: whether zero, one, or several sites fall within a given band, that band's total allocated demand does not change. If one or more sites are present in the band, the fixed budget is split evenly across them. If no site is present in the band, that portion of the pixel's trip budget is recorded as **unmet demand**, rather than reallocated to other bands.
+We use a single 50 km cutoff everywhere, rather than one derived from $b$, because $b$ describes how demand is spread across nearby sites, not where day trips physically stop. Fifty kilometres matches the largest distance bin in the calibration surveys (about 46 km on average). With $b = 0.167$/km, $F(50) \approx 99.98\%$, so the cutoff almost never binds.
 
-Trip budget beyond the group's cutoff distance, $1 - F(d^{\text{cutoff}}_g)$, is treated as unmet demand unconditionally.
-
-Formally, for population pixel $i$ in group $g$, with $\mathcal{S}_k(i)$ the set of sites within band $k$ of pixel $i$:
-
-$$
-\text{visits}_{i \to j} =
-\begin{cases}
-\text{Pop}_i \cdot a_g \cdot \text{share}_k \, / \, |\mathcal{S}_k(i)| & j \in \mathcal{S}_k(i),\ |\mathcal{S}_k(i)| > 0 \\
-0 & \text{otherwise}
-\end{cases}
-$$
-
-$$
-\text{unmet}_i = \text{Pop}_i \cdot a_g \cdot \left[\sum_{k:\, |\mathcal{S}_k(i)|=0} \text{share}_k \; + \; \big(1 - F(d^{\text{cutoff}}_g)\big)\right]
-$$
-
-By construction, $\sum_j \text{visits}_{i \to j} + \text{unmet}_i = \text{Pop}_i \cdot a_g$ for every population pixel; total demand is exactly conserved.
-
-### Parameter Groups {#sec-parameters}
-
-Participation ($a_g$) and distance-decay ($b_g$) parameters are assigned via a country-to-parameter-group mapping, allowing calibration at country, regional, or archetype resolution depending on data availability, without changing the underlying allocation model. Every country sharing a parameter group must share identical $(a_g, b_g)$ values.
-
-| Column | Description |
-|--------|-------------|
-| `iso3_r250_id` | Country identifier |
-| `param_group` | Parameter group assignment (arbitrary integer key; multiple countries may share a group) |
-| `participation_param` | $a_g$, expected annual trips per capita at zero travel distance |
-| `distance_param` | $b_g$, exponential distance-decay rate (per km) |
-
-: Demand Parameter Table Schema {#tbl-parameters}
-
-**Calibration.** We reviewed publicly available trip-frequency and trip-distance survey data across countries and identified two data requirements for a usable study: (1) the trip-frequency distribution must include a "zero visits" bin, so that a true population-wide per-capita rate can be computed rather than a rate conditional on already being a visitor; and (2) the study must separately report a distribution of travel distances among visitors, needed to fit $b_g$. Of the candidate studies reviewed, three satisfied both requirements: the People and Nature Survey for England [@PaNSEngland], a web-based survey of urban nature visitation in Tel Aviv-Yafo, Israel [@TalalGruntman2023], and a park-visitor survey in Beijing, China [@Tu2020126689]. For each study, $a_g$ is the weighted mean annual visits per capita, including the zero-visit bin, and $b_g$ is the inverse of the weighted mean travel distance among visitors (the maximum-likelihood rate parameter for an exponential fit to the binned distance data); distances reported in miles are converted to kilometers before fitting. The three studies' $(a_g, b_g)$ pairs are combined by simple (unweighted) mean, so that a study with an unusually large sample (e.g., 143,558 respondents in England, versus 421 in Israel and 7,326 in China) does not dominate purely because it happened to survey more people. This gives:
+**Calibration.** We reviewed public surveys of trip frequency and trip distance and kept those that (1) include a "zero visits" category, so that a true per-capita rate can be computed, and (2) separately report how far visitors travel. Three studies met both conditions: the People and Nature Survey for England [@PaNSEngland], a survey of urban nature visits in Tel Aviv-Yafo, Israel [@TalalGruntman2023], and a park-visitor survey in Beijing, China [@Tu2020126689]. For each study, $a$ is the mean annual number of visits per person, including people who made none. $b$ is the inverse of the mean travel distance, which is the maximum-likelihood estimate for an exponential distribution. The three studies are averaged without weights, so the very large English sample does not dominate.
 
 | Parameter | Value |
 |-----------|-------|
 | $a$ (participation) | 102.50 visits/capita/year |
-| $b$ (distance decay) | 0.167 /km (implied mean trip distance $\approx$ 6.0 km) |
+| $b$ (distance decay) | 0.167 /km (mean trip distance $\approx$ 6.0 km) |
 
-: Calibrated Global Demand Parameters {#tbl-calibrated-params}
+: Calibrated demand parameters {#tbl-calibrated-params}
 
-This single $(a, b)$ pair is currently applied to every country as one parameter group (`param_group = 1` for all 250 countries in the correspondence table), rather than varying by country or region; see @sec-improvement for the data limitation this reflects. A fourth candidate study, a U.S. survey asking specifically about visits to *other wildlife refuges* [@FWSNVS], satisfies the zero-visit-bin requirement but not the paired-distance requirement, and its much lower implied rate ($a \approx 4.1$ visits/capita/year) reflects a narrower site definition (a specific refuge type, rather than "any park or green space" as asked by the three studies used above) rather than a genuinely lower baseline demand; it is reported here as a caveat and was not included in the calibration.
+The model can assign different parameters to different groups of countries. With only three usable studies, however, one global pair is applied to all countries. A U.S. survey of visits to other wildlife refuges [@FWSNVS] has a zero-visits category but no distance data. Its much lower rate ($a \approx 4.1$) reflects a narrower definition of a site, so we left it out.
 
-## Economic Valuation
+```{python}
+#| echo: false
+#| warning: false
+#| fig-cap: "Calibrated distance-decay function"
+#| label: fig-distance-decay
 
-Realized visits are valued on a capital-account (price times quantity) basis, rather than as consumer surplus under a demand curve. For visits allocated within band $k$ (bounded by $d_{k-1}, d_k$, midpoint $\bar{d}_k$), value is:
+import numpy as np
+import matplotlib.pyplot as plt
+
+b = 0.167
+d_cutoff = 50
+d = np.linspace(0, d_cutoff, 500)
+
+fig, axes = plt.subplots(1, 2, figsize=(9, 3.5))
+axes[0].plot(d, b * np.exp(-b * d), color='#2c7fb8', linewidth=2)
+axes[0].axvline(d_cutoff, color='#666', linestyle='--', linewidth=1)
+axes[0].set_xlabel('Distance (km)')
+axes[0].set_ylabel('$f(d) = b \\cdot e^{-bd}$')
+axes[0].set_title('Distance-decay density')
+axes[1].plot(d, 1 - np.exp(-b * d), color='#2c7fb8', linewidth=2)
+axes[1].axvline(d_cutoff, color='#666', linestyle='--', linewidth=1)
+axes[1].set_xlabel('Distance (km)')
+axes[1].set_ylabel('$F(d) = 1 - e^{-bd}$')
+axes[1].set_title('Cumulative share of demand')
+axes[1].set_ylim(0, 1.02)
+plt.tight_layout()
+plt.show()
+```
+
+**Population.** Resident population comes from WorldPop 2020 [@WorldPopUnconstrainedGlobalMosaics2000_2020], aligned to a 0.01° grid. That alignment resampled 30 arc-second counts without rescaling them for the change in pixel area, so we multiply each pixel by $(0.01 / (30/3600))^2 = 1.44$. This brings the world total to 7.97 billion.
+
+### Recreation from Lodging Visits
+
+Tourist visits use the same allocation model. The population input is replaced by each pixel's overnight stays, and the participation rate becomes $a/365$, which turns visits per person per year into visits per visitor-night. National overnight stays (UNWTO, domestic and international) [@UNWTO2023] are spread across each country in proportion to the Delta Check hotel points [@DeltaCheck2023].
+
+UNWTO does not report the overnights indicator for every country in every year. For each country we use the reporting year closest to 2019, but no more than five years away. Countries with no overnights data in that window have missing lodging and accommodation values, not zeros.
+
+### Overnight Stays and Arrivals
+
+Accommodation is priced on the same national overnight-stay totals, allocated to pixels as above. Air travel is priced on international arrivals by origin region, $A_r$, from UNWTO's arrivals-by-region-of-origin indicator [@UNWTO2023]. This indicator is reported separately from overnights, so the two components can cover different sets of countries.
+
+The arrivals indicator counts all arrivals by every mode of transport. To isolate air travel we multiply by each country's share of arrivals that come by air, $s^{\text{air}}$. This share is the ratio of air to total arrivals in UNWTO's transport table, using the year closest to 2019 within five years. The share is measured directly for 173 countries. For the other 76 it is set to their UNWTO region's median, or the global median when the region has no data, and these cases are flagged in the output.
+
+### Data Harmonization
+
+- **Units.** UNWTO tourism figures are reported in thousands and are converted to counts.
+- **Country codes.** UNWTO uses older M49 codes for some countries, such as 280 for Germany and older codes for several Caribbean territories. We recode these to the country IDs used throughout the pipeline, and sum codes that merge into one country.
+- **Grid geometry.** The grid uses geographic coordinates, so a pixel's east-west width shrinks by $\cos(\text{latitude})$. Distance kernels are built as ellipses using the pixel width at each tile's latitude.
+
+## Estimating Price
+
+### Ground Travel
+
+Visits allocated to ring $k$ are priced at the round-trip fuel cost to the ring's midpoint, $\bar{d}_k$:
 
 $$
 \text{value}_{i \to j} = \text{visits}_{i \to j} \times c_i \times 2\bar{d}_k
 $$
 
-where $c_i$ is the fuel cost per kilometer in traveler $i$'s origin country [@GlobalPetrolPrices2025; @IEA2020FuelPrices; @IEA2021GFEI], and the factor of 2 reflects a round trip. Because within-band allocation is split evenly across sites present in a band rather than weighted by each site's exact distance, value is priced at the band midpoint rather than at each site's individual distance. This is consistent with the fixed, distance-alone basis on which band shares are computed. This assumes ground transportation using motor vehicles is the relevant travel mode, and captures only the value represented by realized local travel costs, not broader economic activity or willingness-to-pay beyond observed travel expenditure.
+$c_i$ is the fuel cost per kilometre in the traveller's origin country [@GlobalPetrolPrices2025; @IEA2020FuelPrices; @IEA2021GFEI]. For lodging visits, this is the country where the tourist is staying. Midpoint pricing matches the way budgets are allocated, by distance alone. The price assumes car travel and counts fuel only: it leaves out the value of travel time and other vehicle costs, so it is a lower bound. Fuel costs are missing for 81 of the 250 countries. Those countries still get visit counts, but their value is reported as missing.
 
-Fuel cost data are unavailable for 81 of 250 countries. For these countries, visits are still computed normally, since visit counts do not depend on cost, but value is reported as missing (rather than a spurious zero, which would otherwise read as "travel is free there") in the final country-level results.
+### Accommodation
 
-## Recreation from Lodging Analysis
+Accommodation value is the number of overnight stays times the hotel price per person per night, calculated for each pixel. Hotel prices come from a gap-filled global price surface [@GlobalHotelPriceGrid2026]:
 
-### Visitor Location Modeling
+- **Source.** The surface is built from hotel-booking rate quotes, averaged to a 0.5° grid as a mean price per person per night. Each hotel gets equal weight.
+- **Gap-filling.** Only 8.3% of land cells are observed directly. The rest are filled by kriging on log prices, then by the nearest observed cell within 500 km, then by the country mean. This raises coverage to 73.7% of land.
+- **Why the mean.** We use mean prices because their sum gives total spending.
 
-Recreation from lodging demand is modeled by spatially allocating national overnight stay statistics using accommodation infrastructure as a proxy for visitor distribution. We combine:
+Cells still without a price are treated as missing, not free. This affects 1 of the 143,340 pixels that have allocated stays.
 
-- **National Tourism Data**: UNWTO annual overnight stay statistics (domestic and international) [@UNWTO2023]
-- **Accommodation Infrastructure**: Delta Check georeferenced hotel and accommodation points [@DeltaCheck2023]
+### Air Travel
 
-This generates country-level overnight stays distributed proportionally to hotel density.
+Air travel value is the number of arrivals from each origin region that came by air, times the fare from that region:
 
-UNWTO reporting of the "Overnights" indicator is inconsistent across countries and years: a country may report for some years but not others, or may report other tourism indicators (e.g., Arrivals) without ever reporting Overnights. Rather than restricting every country to a single target year (2019) and treating any country without that exact year as having zero tourist demand, we use each country's nearest available reporting year to 2019 (e.g., 2018 or 2021 if 2019 itself is missing). This recovers usable data for many countries that would otherwise be dropped entirely, including some major tourism destinations (e.g., New Zealand, Thailand, the Philippines, Colombia) that do not report for 2019 specifically. Countries with no Overnights data in *any* year (e.g., Indonesia, which reports Arrivals but not Overnights) still cannot be assigned a value, and their lodging-based visits and value are reported as missing rather than zero in the final country-level results.
+$$
+\text{air}_R = \sum_r A_r \, s^{\text{air}}_R \, \text{fare}_{r \to R}
+$$
 
-### Visits Estimation and Economic Valuation
+Countries are assigned to UNWTO's seven tourism regions, which differ in places from continental groupings. For example, Egypt and Libya are in the Middle East, and Turkey, Cyprus and the Caucasus are in Europe. Fares come from a single flight-search survey [@flightlist_2026]:
 
-Recreation from lodging visits are estimated using the same distance-banded conserved allocation framework described above, with overnight stay data used as the population proxy in place of residential population. Visits and value are calculated identically, with the fuel cost applied at each visitor's lodging-location country rather than a residential origin. These estimates capture only the value represented by local travel costs and do not capture international travel or other expenditures that may be related to nature-based tourism.
+- **Coverage.** 18 hub airports (3 per region) and 306 ordered hub pairs.
+- **Fare per pair.** The mean of the 5 cheapest round-trip quotes, averaged up to region pairs.
+- **Snapshot.** Searches were run in September 2026 for October 2026 departures. The results are stored as a fixed input so the scrape is not re-run.
+- **Deflation to 2019.** Fares are multiplied by the 2019 average of the U.S. CPI-U Airline Fares index divided by its value in the survey month (factor 0.840) [@BLSAirlineCPI].
 
-### Accommodation Value
+Arrivals from the residual "Other" region are counted but not priced.
 
-In addition to the local ground-travel cost above, we separately value the accommodation expenditure associated with nature-based tourism: `accommodation_value` $= \text{overnights} \times \text{hotel price per person per night}$, computed pixel-by-pixel and summed to the country level. This is an *additive* value component, capturing the cost of staying somewhere rather than the cost of local travel once there, and it is reported as its own column rather than merged into `tourist_value`.
+## Lambda
 
-Hotel prices come from a gap-filled global price surface [@GlobalHotelPriceGrid2026] built from hotel booking API rate quotes, aggregated to a 0.5° grid (mean price per person per night, computed so that a hotel with many rate quotes does not outweigh a hotel with few), then filled where the source grid is sparse (8.3% of land cells observed directly) using, in order of precedence: ordinary kriging on log-transformed prices (Matérn variogram, moving 64-observation neighborhood within 2,000 km), nearest observed pixel within 500 km, and the country mean, raising land coverage to 73.7%. We use the mean-price variant because it is the variable whose sum over pixels equals total accommodation expenditure; the alternative median-price variant is more robust to the small number of extreme-luxury hotel prices in the underlying data but does not have this summing property. Remaining ungapfilled cells (chiefly Greenland, the Sahara, interior Central Asia, and Antarctica) are coded as missing (not zero, i.e., not "free") in the source data, and we preserve that distinction: a pixel with overnight stays but no price estimate contributes an unknown, rather than zero, accommodation value. In practice this affects almost no pixels that matter for this calculation - only 1 of 143,340 pixels with allocated overnight stays fell in a cell with no price estimate, because both hotel-derived inputs (the accommodation points used to allocate overnights, and the booking rate quotes used to build the price surface) are anchored to the same underlying fact of where real hotels exist, and both are therefore largely absent from the same unpopulated areas.
+We need a share $\lambda$ for the portion of value that can be credited to nature. It differs by component:
 
-### Air Travel Value
+- **Ground travel ($\lambda = 1$).** These trips are already limited to high-quality nature sites, so the whole trip cost counts as nature-attributable. This puts all of the attribution in the site definition. It also ignores the built infrastructure, such as roads, trails and parking, that makes access possible.
+- **Accommodation and air travel ($\lambda = 0.183$, applied to personal travel only).** Hotel stays and flights serve many purposes. We first keep only personal (non-business) travel, using each country's share of inbound arrivals by purpose, $s^{\text{personal}}$, from UNWTO [@UNWTO2023]. That share is measured for 168 countries and filled with the regional median for the other 81; the median is 0.87. We then scale by the share of personal travellers who name "natural environment" as the main reason for choosing their destination. That share is 18.3%, the EU-27 average in Flash Eurobarometer 499 [@Eurobarometer499], applied as one global value. The attribution for these two components is therefore $s^{\text{personal}} \times \lambda$.
 
-A third additive component values the cost of reaching the destination country by air, separate from both the local ground-travel value above and accommodation value: `air_travel_value` $= \sum_{r} \text{arrivals}_r \times \text{fare}_{r \to R}$, summed over origin regions $r$, where $R$ is the destination country's own region and arrivals are visitor counts reported by UNWTO's Arrivals-by-region-of-origin indicator [@UNWTO2023] rather than the Overnights indicator used elsewhere in this document (Overnights and Arrivals are reported separately by UNWTO and are not always available for the same country-year, so this component's data coverage is independent of the ground-travel and accommodation components' coverage).
+Both steps are needed because the Eurobarometer share applies only to people travelling for personal reasons. A business trip is not counted as nature-motivated even when the destination is.
 
-Both origin and destination regions are drawn from a 7-region classification (Africa, Americas, East Asia and the Pacific, Europe, Middle East, South Asia, and a residual "Other" not used for pricing here) matching how UNWTO itself reports Arrivals-by-region; each country's own region assignment is a specific point of possible ambiguity, since a handful of countries split inconsistently between conventional continental grouping and UNWTO's tourism-specific classification (Egypt and Libya are UNWTO Middle East rather than Africa; Turkey, Cyprus, and the Caucasus states are UNWTO Europe rather than Middle East or Asia). We built and use a country-to-region crosswalk that follows UNWTO's classification specifically for this reason, rather than a general-purpose continental scheme.
+**Sensitivity.** The value of $\lambda$ has a large effect on the total.
 
-The region-pair fare matrix ($\text{fare}_{r \to R}$) constructs round-trip fares directly from a live flight-search API across 18 hub airports (3 per region, chosen for sub-regional geographic spread and consistent with the crosswalk above), the 5 cheapest quotes for each of the 306 ordered hub-pairs are averaged, and hub-pairs are averaged up to the region-pair level [@flightlist_2026]. Because this reflects current fares rather than 2019 fares, each fare is deflated using the ratio of the 2019 average to the current-month value of the U.S. Producer Price Index for kerosene-type jet fuel [@BLSJetFuelPPI], a single consistent monthly series rather than a set of region-specific benchmarks. The residual "Other" region is not priced: it is a near-empty bucket in UNWTO's own classification, and the arrivals attributed to it are tracked but contribute no value.
+| $\lambda$ | Basis | Accommodation + air (USD) |
+|---|---|---|
+| **0.183** | Nature as the *main* reason for choosing a destination (Eurobarometer 499) | **~\$231B** |
+| 0.426 | Nature as one of the top two reasons (Eurobarometer 499) | ~\$538B |
+
+: Sensitivity of results to $\lambda$ (before attribution: accommodation \$1,010B, air \$445B) {#tbl-lambda}
+
+Country-level values before attribution are kept in the output (`*_uncapped` columns).
 
 ## Variables and Datasets
 
 | Variable | Dataset | Source | Resolution |
 |----------|---------|--------|------------|
-| Land Cover | ESA-CCI Land Cover | [@ESA2017LandCoverCCI] | 300m |
-| Protected Areas | World Database on Protected Areas (WDPA) | [@UNEPWCMC_WDPA] | Vector |
-| Road Network Density | GRIP4 Global Roads Dataset | [@Meijer2018] | Vector |
-| Population | WorldPop Constrained Population | [@WorldPopUnconstrainedGlobalMosaics2000_2020] | 1km |
-| Tourism Statistics | Annual Overnight Stays | [@UNWTO2023] | Country-level |
-| Accommodation Points | Delta Check Hotel Database | [@DeltaCheck2023] | Point locations |
-| Hotel Prices | Global Hotel Price Grid (gap-filled) | [@GlobalHotelPriceGrid2026] | 0.5° |
-| Fuel Costs | Country Fuel Price Data | [@GlobalPetrolPrices2025; @IEA2020FuelPrices; @IEA2021GFEI] | Country-level |
-| International Arrivals | Annual Arrivals by Region of Origin | [@UNWTO2023] | Country-level |
-| Flight Prices | Flight Price Data | [@flightlist_2026] | Live, scraped |
-| Jet Fuel Prices | Producer Price Index, Kerosene-Type Jet Fuel | [@BLSJetFuelPPI] | National (US), monthly |
-| Demand Parameters | Participation and distance-decay parameters by group | [@PaNSEngland; @TalalGruntman2023; @Tu2020126689] | Single global group (all countries) |
+| Land cover | ESA-CCI Land Cover | [@ESA2017LandCoverCCI] | 300m |
+| Protected areas | World Database on Protected Areas | [@UNEPWCMC_WDPA] | Vector |
+| Road density | GRIP4 Global Roads | [@Meijer2018] | Vector |
+| Population | WorldPop 2020 | [@WorldPopUnconstrainedGlobalMosaics2000_2020] | 1km |
+| Overnight stays, arrivals, transport mode | UNWTO Tourism Statistics | [@UNWTO2023] | Country |
+| Accommodation points | Delta Check Hotel Database | [@DeltaCheck2023] | Points |
+| Hotel prices | Global Hotel Price Grid (gap-filled) | [@GlobalHotelPriceGrid2026] | 0.5° |
+| Fuel costs | Country fuel price data | [@GlobalPetrolPrices2025; @IEA2020FuelPrices; @IEA2021GFEI] | Country |
+| Airfares | Flight search survey (Sep 2026) | [@flightlist_2026] | Region pairs |
+| Airfare deflator | CPI-U Airline Fares (CUUR0000SETG01) | [@BLSAirlineCPI] | US, monthly |
+| Demand parameters | Trip-frequency and distance surveys | [@PaNSEngland; @TalalGruntman2023; @Tu2020126689] | Single global group |
+| Nature-attribution share | Flash Eurobarometer 499 | [@Eurobarometer499] | EU-27 |
 
-: Key Variables and Datasets {#tbl-datasets}
+: Key variables and datasets {#tbl-datasets}
 
-# Validation
+## Validation
 
-We compared Recreation from Home results against the European Commission Joint Research Centre's (JRC) Integrated Natural Capital and Ecosystem Services Accounting (INCA) outdoor recreation account [@Vallecillo2019196], the EU-wide implementation of the ESTIMAP model this framework builds on. The JRC account reports 2012 country-level "potential visits" to high-quality recreation areas for 28 European countries, at the Local Administrative Unit (LAU) level.
+We compared recreation-from-home results with the JRC INCA outdoor recreation account [@Vallecillo2019196], which reports 2012 visits to high-quality areas in 28 European countries.
 
-**Spatial pattern.** Across the 28 countries, the Spearman rank correlation between our `home_visits` and the JRC account's potential visits is 0.96 ($p < 0.001$): Germany, France, the United Kingdom, Italy, and Poland rank highest in both datasets, and Malta, Cyprus, Estonia, and Luxembourg rank lowest in both. This indicates that the underlying spatial mechanics of the model (population density combined with proximity to high-quality sites) reproduce the same country-level ranking as JRC's independently-built account.
+- **Ranking.** Our country rankings closely match JRC's. Across the 28 countries the Spearman correlation is 0.96 ($p < 0.001$).
+- **Scale.** Our visit counts are about 1,000 times JRC's (median; the range is 660–1,930). JRC records 40 million visits across the 28 countries, about 0.09 per person per year; we record 41 billion. This gap comes from two differences in scope. JRC counts only walking and cycling within 4 km. We count car trips up to 50 km, with participation calibrated on surveys that ask about visits to "any park or green space".
+- **Value per visit.** Our value is about USD 1.37 per visit across these countries, compared with EUR 1,256 in JRC's account, so ours is roughly 900 times lower. JRC values trips with a zonal travel-cost demand curve; we count fuel spending only.
+- **Total value.** The two gaps roughly cancel. Our total is USD 57B; JRC's is EUR 50B, roughly equal at 2012 exchange rates. That match is a coincidence of offsetting differences, not a confirmation of either level.
 
-**Absolute scale.** Our visit counts are, on average, about 600 times larger than JRC's for the same countries (the ratio is fairly consistent across countries, mostly between 330x and 1080x, rather than varying by orders of magnitude). This gap is attributable almost entirely to two deliberate scope differences rather than to a modeling error:
+The JRC figures come from the INCA outdoor recreation GeoPackage (LAU level, 2012), with LAU totals summed to countries. The JRC value per visit is the figure published in @Vallecillo2019196.
 
-1. **Maximum travel distance.** The JRC account is explicitly restricted to walking- and cycling-distance recreation, capped at 4 km, and deliberately excludes any visit requiring motor transport, treating longer-distance travel as overlapping with tourism instead. Our account uses a 50 km cutoff and prices visits using car fuel cost (see @sec-parameters and Economic Valuation above), so it captures a substantially larger day-trip catchment area around each site.
-2. **Participation rate.** JRC's visit-generating function is a log-logistic mobility function calibrated to a single narrow indicator (the English MENE survey), integrating to an EU-wide average of roughly 0.09 visits per person per year. Our participation parameter ($a = 102.5$ visits/capita/year at zero distance; @sec-parameters) is calibrated from general "any park or green space" survey questions, which capture a much broader and more frequent recreation behavior.
+These checks show that the model's spatial pattern is right. They do not test the absolute number of visits or their value.
 
-**Value per visit.** Per-visit value shows the opposite pattern: JRC's implied value is about EUR 1,256 per visit, versus about USD 142 per visit in our account, so our value per visit is roughly 9 times *lower*, despite our trips traveling farther. This is because JRC's "zonal travel cost method" fits a regression-based "trip generation function" against travel cost, a form of demand-curve valuation similar to consumer surplus. Our valuation (@sec-parameters, Economic Valuation above) is a direct capital-account measure, realized round-trip fuel expenditure, price times quantity. This is a conservative floor on value rather than a full willingness-to-pay estimate. Because the visit-count gap (~600x) and the value-per-visit gap (~1/9) move in opposite directions, the gap in total monetary value across the 28 countries is smaller than either factor alone, at roughly 67x.
+## Limitations
 
-Taken together, the strong rank correlation together with a consistent (rather than erratic) scale gap, fully explained by documented scope and valuation-method differences, supports the model's spatial mechanics while indicating that our results describe a substantially broader definition of "daily recreation" (car-inclusive, higher-frequency, direct-cost-valued) than JRC's INCA account (walking/cycling-only, lower-frequency, demand-curve-valued). Neither framing is more "correct" than the other; they answer different questions, and this comparison should be read as validating internal consistency rather than as evidence that either produces the "true" number of visits.
-
-# Areas for Improvement {#sec-improvement}
-
-## Estimating Recreation Opportunity
-
-The categories used for identifying areas for recreation potential, including the environmental index and accessibility index, need additional validation from the literature.
-
-## Demand Parameter Calibration
-
-The distance-banded allocation model resolves several structural issues in the original zonal travel cost formulation. It no longer relies on fixed 1km distance bands or population-dependent logistic terms calibrated on UK ward-level populations, and it explicitly conserves total demand rather than allowing nearby sites to independently draw full demand. The model's participation ($a_g$) and distance-decay ($b_g$) parameters are now calibrated against real survey data (@sec-parameters) rather than placeholder values, but the calibration remains a single global parameter group rather than country- or region-specific: only three studies met both data requirements (a zero-visit-inclusive participation distribution and a paired travel-distance distribution), covering England, Israel, and China, and their $(a, b)$ values are averaged into one worldwide pair rather than mapped to individual countries. Expanding country- or region-specific coverage, so that countries can be assigned to distinct parameter groups where survey data supports it, remains the primary outstanding methodological task; the underlying country-to-parameter-group mapping already supports this without further changes to the allocation model itself. Scaling laws of human mobility [@Hooftman2023110779] are one candidate approach for deriving globally consistent distance-decay behavior where country-specific survey data is unavailable.
-
-The current model also assumes participation is driven purely by distance decay from a population-representative baseline, rather than by proximity to a single nearest site; this assumption should be revisited if calibration data suggests trip frequency depends more on a traveler's *best* available option than on distance-decayed access to sites in general.
-
-**Note on distinction from calibration data.** The pipeline itself generates, for every population pixel and every reachable site, a simulated (distance, cost, visits) triple. This large simulated dataset cannot be used to estimate or refine a demand curve directly, even though it has genuine geographic variation in distance and cost. The "visits" value in every one of those triples is not an independently observed behavioral outcome, but a deterministic function of distance built from the same $a_g$ and $b_g$ already estimated from the three surveys (@sec-parameters). Regressing simulated visits against simulated cost would, up to discretization noise from the distance bands, simply recover the $b_g$ used to generate the data. It cannot reveal anything about the true shape of demand that was not already assumed when the data were generated. 
-
-What is missing is not distance or cost variation, both of which are genuine here (real geography, real fuel prices), but an *independently observed* visitation outcome to pair with them, at more than a single national mean per study. The three surveys used for calibration (@sec-parameters) only provide national marginal distributions: one distance histogram and one frequency histogram per country, not linked to each other or to any finer geography. Zonal level microdata, could in principle support a genuine zone-level regression of the kind JRC's MENE-based calibration used [@Vallecillo2019196]. Aggregated mobile-location visitation data (of the kind sold commercially by providers such as SafeGraph, Veraset, or Placer.ai, or Google's Popular Times/Places data) is sometimes proposed as a global-scale alternative, but is not presently a viable substitute: commercial panels of this kind are licensed at substantial cost and are concentrated in the United States and a small number of wealthy markets rather than covering the 250 countries this model targets, while freely available aggregated mobility products (e.g., Meta's Data for Good movement maps) report only coarse admin-region-to-region flows, not visitation linked to a specific site's distance. Country- or region-specific expansion of the parameter table therefore remains gated on finding genuinely independent, geographically-resolved visitation data, not on further processing of data already in hand.
-
+- **Site definition favours some regions.** Global class breaks in the environmental index leave very few high-quality sites in parts of South and East Asia:
+  - Only 0.2% of land counts as a site in China and India, against 15–23% in Western Europe and Japan.
+  - As a result, 98–99% of their daily demand is unmet, against 80% worldwide.
+  - Lowering the threshold to class 8 or 7 does not fix this.
+  - Their daily values should be read as lower bounds. Setting class breaks by region is a candidate fix.
+- **Missing overnights data.** Brazil, China, Indonesia, Thailand, India and others have no usable UNWTO overnights figures, so their accommodation value is missing.
+- **US domestic overnights.** These are not in the UNWTO data, so US accommodation value is understated.
+- **Price is a lower bound.** Ground travel counts fuel only, with no value of travel time.
+- **One global $\lambda$.** It comes from EU survey data, and the right share likely varies by destination.
+- **Same-day visitors.** For some countries the arrivals figures include them.
+- **One global set of demand parameters.** Only three surveys qualified. Country- or region-specific parameters need independent visitation data that is resolved geographically. The model's own simulated (distance, cost, visits) triples cannot be used for this, because they are generated from the parameters themselves.
 
 # Results
 
@@ -442,10 +445,10 @@ gdf = gdf.rename(columns={
     'tourist_value': 'lodging_value'
 })
 
-# Calculate combined totals
-# (accommodation_value and air_travel_value are reported separately, not
-# folded into total_value -- see Recreation from Lodging Analysis >
-# Accommodation Value / Air Travel Value)
+# Combined totals. total_value is ground travel only (home + lodging).
+# grand_total_value comes from the pipeline: all four components, with
+# lambda applied to accommodation and air travel, summed over the
+# components that are available (NaN only if all four are missing).
 gdf['total_visits'] = gdf['home_visits'] + gdf['lodging_visits']
 gdf['total_value'] = gdf['home_value'] + gdf['lodging_value']
 ```
@@ -573,13 +576,29 @@ plt.show()
 ```{python}
 #| echo: false
 #| warning: false
-#| fig-cap: "Global Combined Recreation Value (USD)"
+#| fig-cap: "Global Ground Travel Value (Home + Lodging, USD)"
 #| label: fig-total-value
 
 fig, ax = plt.subplots(1, 1, figsize=(8, 4))
-gdf.plot(column="total_value", ax=ax, legend=True, cmap="Greens", 
+gdf.plot(column="total_value", ax=ax, legend=True, cmap="Greens",
          edgecolor='none', legend_kwds={'shrink': 0.5})
-ax.set_title("Global Combined Recreation Value (USD)", fontsize=16, fontweight='bold')
+ax.set_title("Global Ground Travel Value (Home + Lodging, USD)", fontsize=16, fontweight='bold')
+ax.set_axis_off()
+format_cbar_with_commas(ax)
+plt.tight_layout()
+plt.show()
+```
+
+```{python}
+#| echo: false
+#| warning: false
+#| fig-cap: "Global Grand Total Recreation Value, All Components (USD)"
+#| label: fig-grand-total-value
+
+fig, ax = plt.subplots(1, 1, figsize=(8, 4))
+gdf.plot(column="grand_total_value", ax=ax, legend=True, cmap="Greens",
+         edgecolor='none', legend_kwds={'shrink': 0.5})
+ax.set_title("Global Grand Total Recreation Value (USD)", fontsize=16, fontweight='bold')
 ax.set_axis_off()
 format_cbar_with_commas(ax)
 plt.tight_layout()
@@ -590,7 +609,7 @@ plt.show()
 
 ```{python}
 #| label: tbl-country-results
-#| tbl-cap: "Country-Level Recreation Results (Sorted by Total Value)"
+#| tbl-cap: "Country-Level Recreation Results (Sorted by Grand Total Value)"
 #| echo: false
 #| warning: false
 
@@ -604,12 +623,17 @@ summary_df = gdf.drop(columns='geometry')[[
   'accommodation_value',
   'air_travel_value',
   'total_visits',
-  'total_value']]
+  'total_value',
+  'grand_total_value']]
 
-# Sort by total value
-summary_df = summary_df.sort_values('total_value', ascending=False)
+# Sort by grand total value (all four components, lambda applied)
+summary_df = summary_df.sort_values('grand_total_value', ascending=False)
 
-# Rename columns for display
+# Rename columns for display. "Ground Travel Value" (not "Total Value") is
+# deliberately not adjacent to "Grand Total Value" in meaning even though it
+# sits next to it in the table -- it is only home + lodging value, excluding
+# accommodation and air travel; "Grand Total Value" is the true sum of all
+# four value components.
 summary_df = summary_df.rename(columns={
     'iso3_r250_label': 'Country',
     'home_visits': 'Recreation from Home Visits',
@@ -619,7 +643,8 @@ summary_df = summary_df.rename(columns={
     'accommodation_value': 'Accommodation Value (USD)',
     'air_travel_value': 'Air Travel Value (USD)',
     'total_visits': 'Total Visits',
-    'total_value': 'Total Value (USD)'
+    'total_value': 'Ground Travel Value (Home + Lodging, USD)',
+    'grand_total_value': 'Grand Total Value (USD)'
 })
 
 # Format large numbers with adaptive K/M/B/T abbreviations (see format_abbreviated
