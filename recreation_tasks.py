@@ -348,6 +348,7 @@ def aggregate_results_iso3(p):
     outputs = {
         'results_by_country_csv': os.path.join(p.cur_dir, 'results_by_country.csv'),
         'results_by_country_gpkg': os.path.join(p.cur_dir, 'results_by_country.gpkg'),
+        'gep_results_csv': os.path.join(p.cur_dir, 'gep_recreation_results.csv'),
     }
     if ru.outputs_exist(outputs):
         p.L.info("Aggregated results already exist, skipping aggregation")
@@ -370,11 +371,13 @@ def aggregate_results_iso3(p):
     gdf_out = gdf.merge(df, on='iso3_r250_id', how='left')[[
         'iso3_r250_id', 'iso3_r250_label', 'daily_visits', 'daily_value',
         'tourist_visits', 'tourist_value', 'accommodation_value',
-        'accommodation_value_uncapped', 'price_coverage_share', 'air_travel_value',
-        'air_travel_value_uncapped', 'arrivals_coverage_share', 'personal_share',
+        'accommodation_value_pre_attribution', 'price_coverage_share', 'air_travel_value',
+        'air_travel_value_pre_attribution', 'arrivals_coverage_share', 'personal_share',
         'personal_share_imputed', 'grand_total_value', 'n_components_missing', 'geometry']]
 
     pd.DataFrame(gdf_out).drop(columns='geometry').to_csv(outputs['results_by_country_csv'], index=False)
     p.L.info(f"Saved country results to {outputs['results_by_country_csv']}")
     gdf_out.to_file(outputs['results_by_country_gpkg'], driver='GPKG')
     p.L.info(f"Saved country results to {outputs['results_by_country_gpkg']}")
+    ru.format_gep_table(df).to_csv(outputs['gep_results_csv'], index=False, encoding='utf-8-sig')
+    p.L.info(f"Saved GEP results table to {outputs['gep_results_csv']}")

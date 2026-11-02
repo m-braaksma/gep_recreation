@@ -1027,7 +1027,7 @@ def combine_country_results(country_ids, daily_sites, tourist_sites, missing_cos
     Missing inputs are NaN, not zero: no fuel cost -> NaN ground value; no
     overnights -> NaN tourist visits/value and accommodation; no arrivals ->
     NaN air travel. Accommodation and air travel are scaled by personal_share
-    x NATURE_ATTRIBUTION_SHARE; unscaled values are kept as *_uncapped.
+    x NATURE_ATTRIBUTION_SHARE; unscaled values are kept as *_pre_attribution.
     grand_total_value sums whatever components are known.
     """
     daily = daily_sites.groupby('iso3_r250_id').agg(
@@ -1061,8 +1061,8 @@ def combine_country_results(country_ids, daily_sites, tourist_sites, missing_cos
     df = df.merge(personal_share[['iso3_r250_id', 'personal_share', 'personal_share_imputed']],
                   on='iso3_r250_id', how='left')
     attribution = df['personal_share'] * NATURE_ATTRIBUTION_SHARE
-    df['accommodation_value_uncapped'] = df['accommodation_value']
-    df['air_travel_value_uncapped'] = df['air_travel_value']
+    df['accommodation_value_pre_attribution'] = df['accommodation_value']
+    df['air_travel_value_pre_attribution'] = df['air_travel_value']
     df['accommodation_value'] = df['accommodation_value'] * attribution
     df['air_travel_value'] = df['air_travel_value'] * attribution
 

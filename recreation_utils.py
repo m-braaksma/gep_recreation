@@ -331,3 +331,39 @@ def fill_by_region(df, value_col, crosswalk_path, flag_col):
     out[flag_col] = out[value_col].isna()
     out[value_col] = out[value_col].fillna(out['unwto_region'].map(region_median)).fillna(global_median)
     return out.drop(columns='unwto_region')
+
+
+# --- GEP results table ------------------------------------------------------
+
+GEP_COMPONENTS = {
+    'daily_value': ('Daily recreation', 'ᵃ'),
+    'tourist_value': ('Tourist recreation', 'ᵇ'),
+    'accommodation_value': ('Accommodation', 'ᶜ'),
+    'air_travel_value': ('Air travel', 'ᵈ'),
+}
+GEP_FOOTNOTES = {
+    'ᵃ': 'Daily recreation not estimated (no fuel cost data).',
+    'ᵇ': 'Tourist recreation not estimated (no UNWTO overnights or fuel cost data).',
+    'ᶜ': 'Accommodation not estimated (no UNWTO overnights data).',
+    'ᵈ': 'Air travel not estimated (no UNWTO arrivals data).',
+}
+
+
+def format_gep_table(df, units=1e6):
+    """
+    Reshape country results into a GEP-style table for pasting into the
+    combined results: one row per country in millions of 2019 USD, a global
+    total row, and the footnote legend below it. A missing component is
+    written as 'NA' with a superscript footnote marker, not zero.
+    """
+    df = df.sort_values('iso3_r250_label').reset_index(drop=True)
+    out = pd.DataFrame({'Country (ISO3)': list(df['iso3_r250_label']) + ['Total']})
+    for col, (label, marker) in GEP_COMPONENTS.items():
+        values = (df[col] / units).round(2)
+        cells = [f'NA{marker}' if pd.isna(v) else f'{v:.2f}' for v in values]
+        out[f'{label} (million 2019 USD)'] = cells + [f'{values.sum():.2f}']
+    total = (df['grand_total_value'] / units).round(2)
+    out['Total (million 2019 USD)'] = [
+        'NA' if pd.isna(v) else f'{v:.2f}' for v in total] + [f'{total.sum():.2f}']
+    legend = pd.DataFrame({'Country (ISO3)': [f'{m} {text}' for m, text in GEP_FOOTNOTES.items()]})
+    return pd.concat([out, legend], ignore_index=True)

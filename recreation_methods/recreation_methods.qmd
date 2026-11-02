@@ -343,7 +343,7 @@ Both steps are needed because the Eurobarometer share applies only to people tra
 
 : Sensitivity of results to $\lambda$ (before attribution: accommodation \$1,010B, air \$445B) {#tbl-lambda}
 
-Country-level values before attribution are kept in the output (`*_uncapped` columns).
+Country-level values before attribution are kept in the output (`*_pre_attribution` columns).
 
 ## Variables and Datasets
 
@@ -388,6 +388,8 @@ These checks show that the model's spatial pattern is right. They do not test th
 - **US domestic overnights.** These are not in the UNWTO data, so US accommodation value is understated.
 - **Price is a lower bound.** Ground travel counts fuel only, with no value of travel time.
 - **One global $\lambda$.** It comes from EU survey data, and the right share likely varies by destination.
+- **Personal share applied to domestic stays.** The personal-purpose share comes from inbound arrivals by purpose, but it also scales accommodation from domestic overnights. Where domestic business travel differs from inbound, this misstates the domestic part of accommodation value.
+- **Missing components are excluded, not zero.** A country's total sums only the components that could be estimated. Countries missing large components (e.g., China and India, which have only daily values) appear smaller than they are. The results table marks each missing component.
 - **Same-day visitors.** For some countries the arrivals figures include them.
 - **One global set of demand parameters.** Only three surveys qualified. Country- or region-specific parameters need independent visitation data that is resolved geographically. The model's own simulated (distance, cost, visits) triples cannot be used for this, because they are generated from the parameters themselves.
 
