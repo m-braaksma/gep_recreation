@@ -7,3 +7,4 @@ archived/*
 # Rendered appendix (build locally with quarto render)
 recreation_methods/*.html
 recreation_methods/*.docx
+._*
