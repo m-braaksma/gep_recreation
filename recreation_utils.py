@@ -342,28 +342,35 @@ GEP_COMPONENTS = {
     'air_travel_value': ('Air travel', 'ᵈ'),
 }
 GEP_FOOTNOTES = {
-    'ᵃ': 'Daily recreation not estimated (no fuel cost data).',
-    'ᵇ': 'Tourist recreation not estimated (no UNWTO overnights or fuel cost data).',
-    'ᶜ': 'Accommodation not estimated (no UNWTO overnights data).',
-    'ᵈ': 'Air travel not estimated (no UNWTO arrivals data).',
+    'ᵃ': 'Excludes daily recreation (no fuel cost data).',
+    'ᵇ': 'Excludes tourist recreation (no UNWTO overnights or fuel cost data).',
+    'ᶜ': 'Excludes accommodation (no UNWTO overnights data).',
+    'ᵈ': 'Excludes air travel (no UNWTO arrivals data).',
 }
 
 
-def format_gep_table(df, units=1e6):
+def format_gep_table(df):
     """
     Reshape country results into a GEP-style table for pasting into the
-    combined results: one row per country in millions of 2019 USD, a global
-    total row, and the footnote legend below it. A missing component is
-    written as 'NA' with a superscript footnote marker, not zero.
+    combined results: one row per country in whole 2019 USD, a global
+    total row, and the footnote legend below it. Missing components are 'NA'
+    (not zero), and the country total carries a superscript marker for each
+    component it leaves out; a country with no components has total 'NA'.
     """
     df = df.sort_values('iso3_r250_label').reset_index(drop=True)
-    out = pd.DataFrame({'Country (ISO3)': list(df['iso3_r250_label']) + ['Total']})
-    for col, (label, marker) in GEP_COMPONENTS.items():
-        values = df[col] / units
-        cells = [f'NA{marker}' if pd.isna(v) else f'{v:.2f}' for v in values]
-        out[f'{label} (million 2019 USD)'] = cells + [f'{values.sum():.2f}']
-    total = df['grand_total_value'] / units
-    out['Total (million 2019 USD)'] = [
-        'NA' if pd.isna(v) else f'{v:.2f}' for v in total] + [f'{total.sum():.2f}']
+    out = pd.DataFrame({
+        'iso3_r250_id': list(df['iso3_r250_id'].astype(int)) + [''],
+        'Country (ISO3)': list(df['iso3_r250_label']) + ['Total'],
+    })
+    for col, (label, _) in GEP_COMPONENTS.items():
+        values = df[col]
+        out[f'{label} (2019 USD)'] = (
+            ['NA' if pd.isna(v) else f'{v:.0f}' for v in values] + [f'{values.sum():.0f}'])
+    missing_markers = [
+        ''.join(marker for col, (_, marker) in GEP_COMPONENTS.items() if pd.isna(row[col]))
+        for _, row in df.iterrows()]
+    total = df['grand_total_value']
+    out['Total (2019 USD)'] = [
+        'NA' if pd.isna(v) else f'{v:.0f}{m}' for v, m in zip(total, missing_markers)] + [f'{total.sum():.0f}']
     legend = pd.DataFrame({'Country (ISO3)': [f'{m} {text}' for m, text in GEP_FOOTNOTES.items()]})
     return pd.concat([out, legend], ignore_index=True)

@@ -13,7 +13,7 @@ bibliography: assets/recreation_references.bib
 jupyter: teems02
 
 author:
-  - name: Matt Braaksma
+  - name: Matthew Braaksma
     affiliations:
       - name: University of Minnesota
         department: Department of Applied Economics

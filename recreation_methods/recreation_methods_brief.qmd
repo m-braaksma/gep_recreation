@@ -1,0 +1,127 @@
+---
+title: "Overview of Ecosystem Services: Nature-Based Recreation"
+format:
+  html:
+    embed-resources: true
+    number-sections: true
+    toc: false
+  docx:
+    reference-doc: assets/ref_times_new_roman.docx
+    number-sections: true
+    toc: false
+bibliography: assets/recreation_references.bib
+jupyter: teems02
+
+author:
+  - name: Matthew Braaksma
+    affiliations:
+      - name: University of Minnesota
+        department: Department of Applied Economics
+        address:
+        city:
+        country: USA
+    email: braak014@umn.edu
+    url: https://m-braaksma.github.io/
+  - name: Spencer Wood
+    affiliations:
+      - name: University of Washington
+        department: School of Environmental and Forest Sciences
+        address:
+        city:
+        country: USA
+    email: spwood@uw.edu
+    url:
+  - name: Lifeng Ren
+    affiliations:
+      - name: University of Minnesota
+        department: Department of Applied Economics
+        address:
+        city:
+        country: USA
+    email:
+    url:
+  - name: Ryan McWay
+    affiliations:
+      - name: University of Minnesota
+        department: Department of Applied Economics
+        address:
+        city:
+        country: USA
+    email:
+    url:
+---
+
+# Name Crosswalk
+
+GEP Name: Recreation (Tourism)
+
+GEP Short Name: Recreation
+
+gep_label: recreation_tourism
+
+SEEA Name: Recreation-related services (Tourism)
+
+This section outlines how we value nature-based recreation as an ecosystem service. Recreation services are the contributions of ecosystems that let people use and enjoy the environment through direct, in situ interaction, both by locals and by visitors, including tourists. In SEEA EA they are a final, non-material ecosystem service [@un2021seea]. We distinguish **recreation from home**, visits to natural areas by residents travelling from where they live, and **recreation from lodging**, visits by tourists staying in accommodation, together with the accommodation and air travel those trips require. Both depend on the quality of natural areas and on how easy they are to reach.
+
+Following the approach of the JRC/INCA outdoor recreation account [@Vallecillo2019196], we map high-quality recreation sites from land cover, protected areas and accessibility, and allocate trips from population to those sites with a distance-decay demand model calibrated on visitation surveys. Trips are valued at their travel cost. Tourism spending on accommodation and air travel is taken from UNWTO statistics and attributed to nature with survey-based shares.
+
+# Methods
+
+Recreation value in country $c$ is the sum of four components, each a quantity times a price times a nature-attribution share. Values are exchange values (price times quantity), not consumer surplus, in 2019 USD:
+
+$$
+V_c = Q^{\text{home}}_c \, p^{\text{ground}}_c + Q^{\text{lodging}}_c \, p^{\text{ground}}_c + s^{\text{personal}}_c \, \lambda \, N_c \, p^{\text{hotel}} + s^{\text{personal}}_c \, \lambda \sum_r A_{r,c} \, s^{\text{air}}_c \, p^{\text{fare}}_{r \to c}
+$$
+
+The four terms are recreation from home, recreation from lodging, accommodation and air travel. $Q$ is visits to high-quality sites, $N$ is overnight stays, $A_{r,c}$ is arrivals from origin region $r$, $s^{\text{air}}$ is the share of arrivals by air, $s^{\text{personal}}$ is the share of travel for personal purposes, and $\lambda$ is the nature-attribution share. @tbl-components summarizes each component.
+
+| Component | Quantity | Price | $\lambda$ |
+|---|---|---|---|
+| Recreation from home | Resident visits to high-quality sites within 50 km | Round-trip fuel cost | 1 |
+| Recreation from lodging | Tourist visits to high-quality sites within 50 km | Round-trip fuel cost | 1 |
+| Accommodation | Overnight stays (UNWTO) | Hotel price per person per night | 0.183 × personal share |
+| Air travel | Arrivals by origin region × share arriving by air | Regional round-trip airfare | 0.183 × personal share |
+
+: Summary of valuation components {#tbl-components}
+
+Results are reported for 250 countries and territories. A component that cannot be estimated for lack of input data is reported as missing, not zero.
+
+## Estimating quantity
+
+- **Recreation sites.** Each pixel receives an environmental score from the share of each ESA-CCI land-cover class [@ESA2017LandCoverCCI], scored following @Vallecillo2019196 (e.g., forest and water 1.0, grassland 0.7, cropland 0.4, urban 0.05), plus a bonus for protected area share [@UNEPWCMC_WDPA]. An accessibility score combines road density from GRIP4 [@Meijer2018] with urban share. High-quality sites are pixels in the highest environmental class with medium-high or high accessibility.
+
+- **Recreation from home.** Annual trips by the residents of each population pixel (WorldPop 2020 [@WorldPopUnconstrainedGlobalMosaics2000_2020]) are allocated to sites within 50 km. Demand per person is $a$ trips per year and decays with distance following $f(d) = b e^{-bd}$. The 50 km radius is divided into eight rings, and ring $k$ receives a fixed share of each pixel's trips, $F(d_k) - F(d_{k-1})$, split evenly among the sites in that ring:
+
+$$
+\text{visits}_{i \to j} = \frac{\text{Pop}_i \, a \, [F(d_k) - F(d_{k-1})]}{|\mathcal{S}_k(i)|}, \qquad j \in \mathcal{S}_k(i)
+$$
+
+  Total demand is therefore conserved. Trips in rings with no site, and beyond 50 km, are recorded as unmet demand. The parameters are calibrated on the three public surveys that report both a per-capita visit rate including non-visitors and travel distance: England's People and Nature Survey [@PaNSEngland], Tel Aviv-Yafo [@TalalGruntman2023] and Beijing [@Tu2020126689]. Averaging the three gives $a = 102.5$ visits per person per year and $b = 0.167$ per km (mean trip distance about 6 km). One global pair is applied to all countries.
+
+- **Recreation from lodging.** Tourist visits use the same model, with resident population replaced by overnight stays and the rate scaled to $a/365$ visits per visitor-night. National overnight stays (domestic and international) from UNWTO [@UNWTO2023] are spread within each country in proportion to hotel locations [@DeltaCheck2023]. For each country we use the reported year closest to 2019, within five years.
+
+- **Accommodation and air travel.** Accommodation uses the same overnight stays. Air travel uses UNWTO international arrivals by origin region, $A_{r,c}$, multiplied by each country's share of arrivals arriving by air, $s^{\text{air}}_c$, from UNWTO's arrivals-by-transport data (measured for 173 countries, regional median elsewhere) [@UNWTO2023].
+
+## Estimating price
+
+- **Ground travel.** Visits allocated to ring $k$ are valued at the round-trip fuel cost to the ring's midpoint, $c_i \times 2\bar{d}_k$, where $c_i$ is fuel cost per kilometre in the traveller's country [@GlobalPetrolPrices2025; @IEA2020FuelPrices; @IEA2021GFEI]. This counts fuel only and excludes travel time and other vehicle costs, so it is a lower bound.
+
+- **Accommodation.** Overnight stays in each pixel are valued at the mean hotel price per person per night from a gap-filled global hotel price surface (0.5°) built from booking-site quotes [@GlobalHotelPriceGrid2026].
+
+- **Air travel.** Round-trip fares between UNWTO tourism regions come from a flight-search survey of 306 hub-airport pairs (three hubs per region; mean of the five cheapest quotes) [@flightlist_2026]. The survey was run in September 2026 and deflated to 2019 with the U.S. CPI-U Airline Fares index (factor 0.840) [@BLSAirlineCPI].
+
+## Estimating lambda
+
+- **Ground travel ($\lambda = 1$).** Trips are already restricted to high-quality natural sites, so the full trip cost is attributed to nature.
+
+- **Accommodation and air travel ($s^{\text{personal}} \times \lambda$).** Hotel stays and flights serve many purposes. We first keep personal (non-business) travel using each country's share of inbound arrivals by purpose, $s^{\text{personal}}$ (UNWTO; measured for 168 countries, regional median elsewhere; median 0.87) [@UNWTO2023]. We then apply $\lambda = 0.183$, the EU-27 share of personal travellers who name the natural environment as the *main* reason for choosing their destination (Flash Eurobarometer 499) [@Eurobarometer499]. Using the share that names nature as one of the top two reasons ($\lambda = 0.426$) would raise accommodation and air travel from about \$231B to \$538B globally.
+
+## Validation
+
+For 28 European countries we compared recreation from home with the JRC/INCA outdoor recreation account for 2012 [@Vallecillo2019196]. Country rankings agree closely (Spearman 0.96). Absolute levels differ in offsetting ways: our model counts about 1,000 times more visits, because it includes car trips up to 50 km rather than walking and cycling within 4 km, and values each visit about 900 times lower, at fuel cost rather than with a travel-cost demand curve. Totals are therefore similar (USD 57B versus EUR 50B), but this match is not evidence for either level.
+
+## Limitations and future directions
+
+The global class breaks used to define sites leave very few high-quality sites in parts of South and East Asia (0.2% of land in China and India), so most of their demand is unmet and their values are lower bounds; region-specific thresholds are a candidate fix. UNWTO overnights are missing for several large countries (including Brazil, China, India and Indonesia), and U.S. domestic overnights are not reported, so those accommodation values are missing or understated. Country totals sum only the components that could be estimated. The demand parameters come from only three surveys and are applied globally, and the attribution share comes from EU data and likely varies by destination. The personal-travel share is measured on inbound arrivals but also applied to domestic stays. Fuel-only pricing makes the ground-travel value a lower bound.
+
+# References
